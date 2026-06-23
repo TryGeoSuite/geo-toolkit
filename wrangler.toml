@@ -1,0 +1,17 @@
+name = "geo-toolkit"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+# Custom domain — the trygeosuite.it zone must be on this Cloudflare account
+# (it is, on the GeoSuite account). `wrangler deploy` provisions the DNS record.
+routes = [
+  { pattern = "tools.trygeosuite.it", custom_domain = true }
+]
+
+# Static landing — zero deps, no nodejs_compat.
+#
+# ⚠️ Deploy to your PERSONAL / GeoSuite Cloudflare account — NOT the work/Cato
+# one (`wrangler whoami` to check). Pin it to be safe:
+# account_id = "<your-personal-cloudflare-account-id>"
+#
+# Publishes to https://geo-toolkit.<your-subdomain>.workers.dev
