@@ -124,7 +124,7 @@ export function renderPage(lang, stats) {
         <a class="open" href="${tool.open}" target="_blank" rel="noopener">${t.open}</a>
         <a class="ghost" href="${tool.gh}" target="_blank" rel="noopener">GitHub</a>
       </div>
-      <code>${tool.cmd}</code>
+      <code class="cmd">${tool.cmd}</code>
     </div>`,
   ).join('\n\n');
 
@@ -188,7 +188,8 @@ export function renderPage(lang, stats) {
   .tool a.open:hover { opacity: .9; }
   .tool a.ghost { border: 1px solid var(--line); color: var(--text); font-size: .9rem; padding: 9px 13px; border-radius: 9px; text-decoration: none; }
   .tool a.ghost:hover { border-color: var(--accent); color: var(--accent); }
-  .tool code { position: relative; display: block; margin-top: 12px; padding: 10px 60px 10px 12px; background: rgba(255,255,255,.03); border: 1px solid var(--line); border-radius: 8px; color: var(--muted); font-size: .8rem; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-x: auto; }
+  .tool code { color: var(--muted); font-size: .8rem; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .tool code.cmd { position: relative; display: block; margin-top: 12px; padding: 10px 60px 10px 12px; background: rgba(255,255,255,.03); border: 1px solid var(--line); border-radius: 8px; overflow-x: auto; }
   .tool .copy { position: absolute; top: 50%; right: 6px; transform: translateY(-50%); background: var(--line); color: var(--text); border: 0; border-radius: 6px; font: 600 .72rem/1 inherit; padding: 5px 9px; cursor: pointer; }
   .tool .copy:hover { background: var(--accent); color: #fff; }
   footer { margin-top: 40px; color: var(--muted); font-size: .88rem; text-align: center; }
@@ -219,7 +220,7 @@ ${cards}
 <script>
 (function () {
   var L = { copy: ${JSON.stringify(t.copy)}, copied: ${JSON.stringify(t.copied)} };
-  document.querySelectorAll('.tool code').forEach(function (c) {
+  document.querySelectorAll('.tool code.cmd').forEach(function (c) {
     var cmd = c.textContent.trim();
     var b = document.createElement('button');
     b.type = 'button'; b.className = 'copy'; b.textContent = L.copy; b.setAttribute('aria-label', L.copy);
