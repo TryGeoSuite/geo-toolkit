@@ -102,7 +102,7 @@ export function renderPage(lang, stats) {
 <link rel="canonical" href="${BASE}/${lang}">
 <link rel="alternate" hreflang="en" href="${BASE}/en">
 <link rel="alternate" hreflang="it" href="${BASE}/it">
-<link rel="alternate" hreflang="x-default" href="${BASE}/en">
+<link rel="alternate" hreflang="x-default" href="${BASE}/">
 <style>
   :root {
     --bg: #0b0f17; --panel: #131a26; --line: #243042; --text: #e7edf5;
