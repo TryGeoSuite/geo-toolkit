@@ -25,6 +25,8 @@ export const PAGE = `<!doctype html>
   header p { color: var(--muted); margin: 0 auto; max-width: 560px; }
   header .cta { display: inline-block; margin-top: 18px; background: var(--accent); color: #fff; font-weight: 600; padding: 11px 20px; border-radius: 10px; text-decoration: none; }
   header .cta:hover { opacity: .9; }
+  header .stats { margin: 18px auto 0; color: var(--muted); font-size: .9rem; }
+  header .stats strong { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
   .tool { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px; display: flex; flex-direction: column; }
@@ -47,6 +49,7 @@ export const PAGE = `<!doctype html>
     <h1>GeoSuite Open</h1>
     <p>Free, open-source tools for <strong style="color:var(--text)">Generative Engine Optimization</strong> — making your site legible to ChatGPT, Gemini, Claude &amp; Perplexity. Zero dependencies, run in your terminal or right here.</p>
     <a class="cta" href="https://trygeosuite.it" target="_blank" rel="noopener">Explore GeoSuite →</a>
+    {{STATS}}
   </header>
 
   <div class="grid">
