@@ -1,13 +1,108 @@
-// Landing page for the GeoSuite Open GEO toolkit — a hub linking the free
-// hosted tools and their open-source repos. Plain template string, all inline.
+// Landing page for the GeoSuite Open GEO toolkit — a hub linking the free hosted
+// tools and their open-source repos. Bilingual (en/it): the worker picks a locale
+// and calls renderPage(lang, stats); all copy lives in the S dictionary below.
 
-export const PAGE = `<!doctype html>
-<html lang="en">
+const BASE = 'https://tools.trygeosuite.it';
+
+// Language-invariant per tool: name, emoji, links, CLI command. Only the blurb is
+// translated (see S[lang].tools[i]).
+const TOOLS = [
+  {
+    emoji: '🤖',
+    name: 'AI Crawl Check',
+    open: 'https://ai-crawl-check.geosuite.workers.dev',
+    gh: 'https://github.com/TryGeoSuite/ai-crawler-bots',
+    cmd: 'npx @geosuite/ai-crawler-bots robots &lt;url&gt;',
+  },
+  {
+    emoji: '📄',
+    name: 'llms.txt Generator',
+    open: 'https://llmstxt-generator.geosuite.workers.dev',
+    gh: 'https://github.com/TryGeoSuite/llms-txt-generator',
+    cmd: 'npx @geosuite/llms-txt-generator &lt;sitemap&gt;',
+  },
+  {
+    emoji: '🔖',
+    name: 'Schema Templates',
+    open: 'https://schema-templates.geosuite.workers.dev',
+    gh: 'https://github.com/TryGeoSuite/schema-templates',
+    cmd: 'npx @geosuite/schema-templates show Organization',
+  },
+  {
+    emoji: '🗺️',
+    name: 'Sitemap Builder',
+    open: 'https://sitemap-builder.geosuite.workers.dev',
+    gh: 'https://github.com/TryGeoSuite/sitemap-builder',
+    cmd: 'npx @geosuite/sitemap-builder &lt;url&gt;',
+  },
+];
+
+const S = {
+  en: {
+    title: 'GeoSuite Open — free GEO tools',
+    desc: 'Free, open-source tools for Generative Engine Optimization (GEO): audit AI crawlers, generate llms.txt, build schema.org JSON-LD, and create sitemaps.',
+    lead: `Free, open-source tools for <strong style="color:var(--text)">Generative Engine Optimization</strong> — making your site legible to ChatGPT, Gemini, Claude &amp; Perplexity. Zero dependencies, run in your terminal or right here.`,
+    cta: 'Explore GeoSuite →',
+    open: 'Open tool →',
+    stats: (t, m) => `⬇ <strong>${t}</strong> downloads · <strong>${m}</strong>/month across the toolkit`,
+    footer: `Open source (MIT) by <a href="https://github.com/matte97p">Matteo Perino</a> · maintained under <a href="https://trygeosuite.it">GeoSuite</a> · <a href="https://github.com/TryGeoSuite">github.com/TryGeoSuite</a>`,
+    tools: [
+      `See which AI crawlers (GPTBot, ClaudeBot, PerplexityBot…) your <code style="display:inline">robots.txt</code> allows or blocks — with an AI-visibility score. Plus a public bot-list API.`,
+      `Turn any site's <code style="display:inline">sitemap.xml</code> into an <code style="display:inline">llms.txt</code> — the curated index that tells AI models which pages matter.`,
+      `Copy-paste schema.org JSON-LD templates (Organization, Product, FAQPage, Article…) and validate your own structured data.`,
+      `Crawl a site and build a <code style="display:inline">sitemap.xml</code> — a quick capped version here, or a full crawl from the CLI.`,
+    ],
+  },
+  it: {
+    title: 'GeoSuite Open — strumenti GEO gratuiti',
+    desc: 'Strumenti gratuiti e open-source per la Generative Engine Optimization (GEO): controlla i crawler AI, genera llms.txt, crea JSON-LD schema.org e costruisci sitemap.',
+    lead: `Strumenti gratuiti e open-source per la <strong style="color:var(--text)">Generative Engine Optimization</strong> — per rendere il tuo sito leggibile a ChatGPT, Gemini, Claude e Perplexity. Zero dipendenze, dal terminale o direttamente qui.`,
+    cta: 'Scopri GeoSuite →',
+    open: 'Apri lo strumento →',
+    stats: (t, m) => `⬇ <strong>${t}</strong> download · <strong>${m}</strong>/mese in tutta la suite`,
+    footer: `Open source (MIT) di <a href="https://github.com/matte97p">Matteo Perino</a> · mantenuto sotto <a href="https://trygeosuite.it">GeoSuite</a> · <a href="https://github.com/TryGeoSuite">github.com/TryGeoSuite</a>`,
+    tools: [
+      `Scopri quali crawler AI (GPTBot, ClaudeBot, PerplexityBot…) il tuo <code style="display:inline">robots.txt</code> permette o blocca — con un punteggio di visibilità AI. Più una API pubblica con la lista dei bot.`,
+      `Trasforma il <code style="display:inline">sitemap.xml</code> di qualsiasi sito in un <code style="display:inline">llms.txt</code> — l'indice curato che dice ai modelli AI quali pagine contano.`,
+      `Template JSON-LD schema.org pronti da copiare (Organization, Product, FAQPage, Article…) e valida i tuoi dati strutturati.`,
+      `Esplora un sito e costruisci un <code style="display:inline">sitemap.xml</code> — qui una versione rapida e limitata, o un crawl completo da CLI.`,
+    ],
+  },
+};
+
+function fmt(n) {
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'k';
+  return String(n);
+}
+
+// lang: 'en' | 'it'. stats: { total, monthly } or null (cold/degraded → line omitted).
+export function renderPage(lang, stats) {
+  const t = S[lang] || S.en;
+  const statsLine = stats ? `<p class="stats">${t.stats(fmt(stats.total), fmt(stats.monthly))}</p>` : '';
+  const cards = TOOLS.map(
+    (tool, i) => `    <div class="tool">
+      <h2><span class="emoji">${tool.emoji}</span> ${tool.name}</h2>
+      <p>${t.tools[i]}</p>
+      <div class="links">
+        <a class="open" href="${tool.open}" target="_blank" rel="noopener">${t.open}</a>
+        <a class="ghost" href="${tool.gh}" target="_blank" rel="noopener">GitHub</a>
+      </div>
+      <code>${tool.cmd}</code>
+    </div>`,
+  ).join('\n\n');
+
+  return `<!doctype html>
+<html lang="${lang}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>GeoSuite Open — free GEO tools</title>
-<meta name="description" content="Free, open-source tools for Generative Engine Optimization (GEO): audit AI crawlers, generate llms.txt, build schema.org JSON-LD, and create sitemaps.">
+<title>${t.title}</title>
+<meta name="description" content="${t.desc}">
+<link rel="canonical" href="${BASE}/${lang}">
+<link rel="alternate" hreflang="en" href="${BASE}/en">
+<link rel="alternate" hreflang="it" href="${BASE}/it">
+<link rel="alternate" hreflang="x-default" href="${BASE}/en">
 <style>
   :root {
     --bg: #0b0f17; --panel: #131a26; --line: #243042; --text: #e7edf5;
@@ -19,7 +114,11 @@ export const PAGE = `<!doctype html>
     font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
-  .wrap { max-width: 900px; margin: 0 auto; padding: 56px 20px 80px; }
+  .wrap { position: relative; max-width: 900px; margin: 0 auto; padding: 56px 20px 80px; }
+  .lang { position: absolute; top: 18px; right: 20px; display: flex; gap: 6px; font-size: .8rem; }
+  .lang a { color: var(--muted); text-decoration: none; padding: 4px 9px; border-radius: 7px; border: 1px solid transparent; }
+  .lang a.on { color: var(--text); border-color: var(--line); background: var(--panel); }
+  .lang a:hover { color: var(--text); }
   header { text-align: center; margin-bottom: 36px; }
   header h1 { font-size: 2rem; margin: 0 0 10px; letter-spacing: -0.02em; }
   header p { color: var(--muted); margin: 0 auto; max-width: 560px; }
@@ -45,59 +144,25 @@ export const PAGE = `<!doctype html>
 </head>
 <body>
 <div class="wrap">
+  <nav class="lang" aria-label="Language">
+    <a href="/en"${lang === 'en' ? ' class="on"' : ''}>EN</a>
+    <a href="/it"${lang === 'it' ? ' class="on"' : ''}>IT</a>
+  </nav>
   <header>
     <h1>GeoSuite Open</h1>
-    <p>Free, open-source tools for <strong style="color:var(--text)">Generative Engine Optimization</strong> — making your site legible to ChatGPT, Gemini, Claude &amp; Perplexity. Zero dependencies, run in your terminal or right here.</p>
-    <a class="cta" href="https://trygeosuite.it" target="_blank" rel="noopener">Explore GeoSuite →</a>
-    {{STATS}}
+    <p>${t.lead}</p>
+    <a class="cta" href="https://trygeosuite.it" target="_blank" rel="noopener">${t.cta}</a>
+    ${statsLine}
   </header>
 
   <div class="grid">
-    <div class="tool">
-      <h2><span class="emoji">🤖</span> AI Crawl Check</h2>
-      <p>See which AI crawlers (GPTBot, ClaudeBot, PerplexityBot…) your <code style="display:inline">robots.txt</code> allows or blocks — with an AI-visibility score. Plus a public bot-list API.</p>
-      <div class="links">
-        <a class="open" href="https://ai-crawl-check.geosuite.workers.dev" target="_blank" rel="noopener">Open tool →</a>
-        <a class="ghost" href="https://github.com/TryGeoSuite/ai-crawler-bots" target="_blank" rel="noopener">GitHub</a>
-      </div>
-      <code>npx @geosuite/ai-crawler-bots robots &lt;url&gt;</code>
-    </div>
-
-    <div class="tool">
-      <h2><span class="emoji">📄</span> llms.txt Generator</h2>
-      <p>Turn any site's <code style="display:inline">sitemap.xml</code> into an <code style="display:inline">llms.txt</code> — the curated index that tells AI models which pages matter.</p>
-      <div class="links">
-        <a class="open" href="https://llmstxt-generator.geosuite.workers.dev" target="_blank" rel="noopener">Open tool →</a>
-        <a class="ghost" href="https://github.com/TryGeoSuite/llms-txt-generator" target="_blank" rel="noopener">GitHub</a>
-      </div>
-      <code>npx @geosuite/llms-txt-generator &lt;sitemap&gt;</code>
-    </div>
-
-    <div class="tool">
-      <h2><span class="emoji">🔖</span> Schema Templates</h2>
-      <p>Copy-paste schema.org JSON-LD templates (Organization, Product, FAQPage, Article…) and validate your own structured data.</p>
-      <div class="links">
-        <a class="open" href="https://schema-templates.geosuite.workers.dev" target="_blank" rel="noopener">Open tool →</a>
-        <a class="ghost" href="https://github.com/TryGeoSuite/schema-templates" target="_blank" rel="noopener">GitHub</a>
-      </div>
-      <code>npx @geosuite/schema-templates show Organization</code>
-    </div>
-
-    <div class="tool">
-      <h2><span class="emoji">🗺️</span> Sitemap Builder</h2>
-      <p>Crawl a site and build a <code style="display:inline">sitemap.xml</code> — a quick capped version here, or a full crawl from the CLI.</p>
-      <div class="links">
-        <a class="open" href="https://sitemap-builder.geosuite.workers.dev" target="_blank" rel="noopener">Open tool →</a>
-        <a class="ghost" href="https://github.com/TryGeoSuite/sitemap-builder" target="_blank" rel="noopener">GitHub</a>
-      </div>
-      <code>npx @geosuite/sitemap-builder &lt;url&gt;</code>
-    </div>
+${cards}
   </div>
 
   <footer>
-    Open source (MIT) by <a href="https://github.com/matte97p">Matteo Perino</a> · maintained under <a href="https://trygeosuite.it">GeoSuite</a> ·
-    <a href="https://github.com/TryGeoSuite">github.com/TryGeoSuite</a>
+    ${t.footer}
   </footer>
 </div>
 </body>
 </html>`;
+}
