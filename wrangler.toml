@@ -8,6 +8,18 @@ routes = [
   { pattern = "tools.trygeosuite.it", custom_domain = true }
 ]
 
+# Bundle the OG share image (1200×630 PNG) as an ArrayBuffer the Worker serves
+# at /og.png — no external host, CSP-safe.
+rules = [
+  { type = "Data", globs = ["**/*.png"], fallthrough = false }
+]
+
+# Privacy-light traffic counting (locale + path only, no visitor data), same
+# binding the tool Workers use. Provisioned on deploy.
+[[analytics_engine_datasets]]
+binding = "AE"
+dataset = "geo_toolkit_hits"
+
 # Static landing — zero deps, no nodejs_compat.
 #
 # ⚠️ Deploy to your PERSONAL / GeoSuite Cloudflare account — NOT the work/Cato

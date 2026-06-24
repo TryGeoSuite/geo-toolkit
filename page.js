@@ -1,6 +1,9 @@
 // Landing page for the GeoSuite Open GEO toolkit — a hub linking the free hosted
 // tools and their open-source repos. Bilingual (en/it): the worker picks a locale
 // and calls renderPage(lang, stats); all copy lives in the S dictionary below.
+//
+// The page also dogfoods the toolkit it advertises: JSON-LD structured data here,
+// plus /robots.txt, /llms.txt, /sitemap.xml and an OG image served by the worker.
 
 const BASE = 'https://tools.trygeosuite.it';
 
@@ -44,6 +47,8 @@ const S = {
     lead: `Free, open-source tools for <strong style="color:var(--text)">Generative Engine Optimization</strong> — making your site legible to ChatGPT, Gemini, Claude &amp; Perplexity. Zero dependencies, run in your terminal or right here.`,
     cta: 'Explore GeoSuite →',
     open: 'Open tool →',
+    copy: 'copy',
+    copied: 'copied',
     stats: (t, m) => `⬇ <strong>${t}</strong> downloads · <strong>${m}</strong>/month across the toolkit`,
     footer: `Open source (MIT) by <a href="https://github.com/matte97p">Matteo Perino</a> · maintained under <a href="https://trygeosuite.it">GeoSuite</a> · <a href="https://github.com/TryGeoSuite">github.com/TryGeoSuite</a>`,
     tools: [
@@ -59,6 +64,8 @@ const S = {
     lead: `Strumenti gratuiti e open-source per la <strong style="color:var(--text)">Generative Engine Optimization</strong> — per rendere il tuo sito leggibile a ChatGPT, Gemini, Claude e Perplexity. Zero dipendenze, dal terminale o direttamente qui.`,
     cta: 'Scopri GeoSuite →',
     open: 'Apri lo strumento →',
+    copy: 'copia',
+    copied: 'copiato',
     stats: (t, m) => `⬇ <strong>${t}</strong> download · <strong>${m}</strong>/mese in tutta la suite`,
     footer: `Open source (MIT) di <a href="https://github.com/matte97p">Matteo Perino</a> · mantenuto sotto <a href="https://trygeosuite.it">GeoSuite</a> · <a href="https://github.com/TryGeoSuite">github.com/TryGeoSuite</a>`,
     tools: [
@@ -74,6 +81,35 @@ function fmt(n) {
   if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
   if (n >= 1e3) return (n / 1e3).toFixed(1) + 'k';
   return String(n);
+}
+
+const stripTags = (s) => s.replace(/<[^>]+>/g, '');
+
+// schema.org JSON-LD: Organization + an ItemList of the four SoftwareApplications.
+function jsonLd(t) {
+  return JSON.stringify({
+    '@context': 'https://schema.org',
+    '@graph': [
+      { '@type': 'Organization', name: 'GeoSuite', url: 'https://trygeosuite.it', sameAs: ['https://github.com/TryGeoSuite'] },
+      {
+        '@type': 'ItemList',
+        name: t.title,
+        itemListElement: TOOLS.map((tool, i) => ({
+          '@type': 'ListItem',
+          position: i + 1,
+          item: {
+            '@type': 'SoftwareApplication',
+            name: tool.name,
+            applicationCategory: 'DeveloperApplication',
+            operatingSystem: 'Web, Node.js',
+            description: stripTags(t.tools[i]),
+            url: tool.open,
+            offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' },
+          },
+        })),
+      },
+    ],
+  });
 }
 
 // lang: 'en' | 'it'. stats: { total, monthly } or null (cold/degraded → line omitted).
@@ -103,6 +139,21 @@ export function renderPage(lang, stats) {
 <link rel="alternate" hreflang="en" href="${BASE}/en">
 <link rel="alternate" hreflang="it" href="${BASE}/it">
 <link rel="alternate" hreflang="x-default" href="${BASE}/">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GeoSuite Open">
+<meta property="og:title" content="${t.title}">
+<meta property="og:description" content="${t.desc}">
+<meta property="og:url" content="${BASE}/${lang}">
+<meta property="og:image" content="${BASE}/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="${lang === 'it' ? 'it_IT' : 'en_US'}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${t.title}">
+<meta name="twitter:description" content="${t.desc}">
+<meta name="twitter:image" content="${BASE}/og.png">
+<script type="application/ld+json">${jsonLd(t)}</script>
 <style>
   :root {
     --bg: #0b0f17; --panel: #131a26; --line: #243042; --text: #e7edf5;
@@ -137,7 +188,9 @@ export function renderPage(lang, stats) {
   .tool a.open:hover { opacity: .9; }
   .tool a.ghost { border: 1px solid var(--line); color: var(--text); font-size: .9rem; padding: 9px 13px; border-radius: 9px; text-decoration: none; }
   .tool a.ghost:hover { border-color: var(--accent); color: var(--accent); }
-  .tool code { display: block; margin-top: 12px; color: var(--muted); font-size: .8rem; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .tool code { position: relative; display: block; margin-top: 12px; padding: 10px 60px 10px 12px; background: rgba(255,255,255,.03); border: 1px solid var(--line); border-radius: 8px; color: var(--muted); font-size: .8rem; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-x: auto; }
+  .tool .copy { position: absolute; top: 50%; right: 6px; transform: translateY(-50%); background: var(--line); color: var(--text); border: 0; border-radius: 6px; font: 600 .72rem/1 inherit; padding: 5px 9px; cursor: pointer; }
+  .tool .copy:hover { background: var(--accent); color: #fff; }
   footer { margin-top: 40px; color: var(--muted); font-size: .88rem; text-align: center; }
   footer a { color: var(--accent); text-decoration: none; }
 </style>
@@ -163,6 +216,23 @@ ${cards}
     ${t.footer}
   </footer>
 </div>
+<script>
+(function () {
+  var L = { copy: ${JSON.stringify(t.copy)}, copied: ${JSON.stringify(t.copied)} };
+  document.querySelectorAll('.tool code').forEach(function (c) {
+    var cmd = c.textContent.trim();
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'copy'; b.textContent = L.copy; b.setAttribute('aria-label', L.copy);
+    b.addEventListener('click', function () {
+      navigator.clipboard.writeText(cmd).then(function () {
+        b.textContent = L.copied;
+        setTimeout(function () { b.textContent = L.copy; }, 1200);
+      }).catch(function () {});
+    });
+    c.appendChild(b);
+  });
+})();
+</script>
 </body>
 </html>`;
 }
