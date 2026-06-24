@@ -30,8 +30,19 @@ npx @geosuite/sitemap-builder https://example.com
 
 ## This repo
 
-The hub page itself — a tiny static [Cloudflare Worker](https://developers.cloudflare.com/workers/),
-no logic, no deps. It deploys to **tools.trygeosuite.it**.
+The hub page itself — a small zero-dependency [Cloudflare Worker](https://developers.cloudflare.com/workers/)
+that deploys to **tools.trygeosuite.it**. It does a bit more than serve static HTML:
+
+- **Bilingual (en/it):** `/` is content-negotiated on `Accept-Language`; `/en` and
+  `/it` are explicit, with an EN·IT switch, `hreflang`/`canonical` and `x-default → /`.
+- **Live social proof:** one header figure shows the four tools' combined npm
+  downloads (all-time + last-month), fetched server-side with a last-good Cache
+  fallback so a rate-limit blip never blanks it.
+- **Dogfoods GEO:** serves `/robots.txt` (welcomes AI crawlers → scores 100 on our
+  own AI Crawl Check), `/llms.txt`, `/sitemap.xml`, and JSON-LD (Organization +
+  an ItemList of the four `SoftwareApplication`s) in the page head.
+- **Shareable:** Open Graph + Twitter card meta with a bundled 1200×630 `/og.png`
+  (wrangler `Data` rule), plus an inline `/favicon.svg`.
 
 ```bash
 npx wrangler deploy   # to the GeoSuite Cloudflare account
