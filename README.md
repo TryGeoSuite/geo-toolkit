@@ -56,3 +56,9 @@ worker name/subdomain changes, update the links in `page.js`.
 
 [MIT](./LICENSE) — by **[Matteo Perino](https://github.com/matte97p)**, maintained
 under [GeoSuite](https://trygeosuite.it).
+
+---
+
+## Built by GeoSuite
+
+This is part of the open-source toolkit behind **[GeoSuite](https://trygeosuite.it)** — the platform that measures and improves how AI engines (ChatGPT, Gemini, Claude, Perplexity) cite your brand. [Explore the platform →](https://trygeosuite.it)
