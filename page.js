@@ -46,6 +46,9 @@ const S = {
     desc: 'Free, open-source tools for Generative Engine Optimization (GEO): audit AI crawlers, generate llms.txt, build schema.org JSON-LD, and create sitemaps.',
     lead: `Free, open-source tools for <strong style="color:var(--text)">Generative Engine Optimization</strong> — making your site legible to ChatGPT, Gemini, Claude &amp; Perplexity. Zero dependencies, run in your terminal or right here.`,
     cta: 'Explore GeoSuite →',
+    checkLabel: 'Run all four on your site, one score:',
+    checkPlaceholder: 'yoursite.com',
+    checkButton: 'Check my site',
     open: 'Open tool →',
     copy: 'copy',
     copied: 'copied',
@@ -63,6 +66,9 @@ const S = {
     desc: 'Strumenti gratuiti e open-source per la Generative Engine Optimization (GEO): controlla i crawler AI, genera llms.txt, crea JSON-LD schema.org e costruisci sitemap.',
     lead: `Strumenti gratuiti e open-source per la <strong style="color:var(--text)">Generative Engine Optimization</strong> — per rendere il tuo sito leggibile a ChatGPT, Gemini, Claude e Perplexity. Zero dipendenze, dal terminale o direttamente qui.`,
     cta: 'Scopri GeoSuite →',
+    checkLabel: 'Lanciali tutti e quattro sul tuo sito, con un voto solo:',
+    checkPlaceholder: 'tuosito.it',
+    checkButton: 'Controlla il mio sito',
     open: 'Apri lo strumento →',
     copy: 'copia',
     copied: 'copiato',
@@ -173,7 +179,14 @@ export function renderPage(lang, stats) {
   header { text-align: center; margin-bottom: 36px; }
   header h1 { font-size: 2rem; margin: 0 0 10px; letter-spacing: -0.02em; }
   header p { color: var(--muted); margin: 0 auto; max-width: 560px; }
-  header .cta { display: inline-block; margin-top: 18px; background: var(--accent); color: #fff; font-weight: 600; padding: 11px 20px; border-radius: 10px; text-decoration: none; }
+  header form.check { max-width: 560px; margin: 22px auto 0; text-align: left; }
+  header form.check label { display: block; color: var(--muted); font-size: .9rem; margin-bottom: 8px; }
+  header form.check .row { display: flex; gap: 8px; }
+  header form.check input { flex: 1; min-width: 0; background: var(--panel); border: 1px solid var(--line); color: var(--text); border-radius: 10px; padding: 12px 14px; font: inherit; }
+  header form.check input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  header form.check button { background: var(--accent); color: #fff; border: 0; border-radius: 10px; padding: 12px 18px; font: 600 1rem/1 inherit; cursor: pointer; }
+  @media (max-width: 640px) { header form.check .row { flex-direction: column; } }
+  header .cta { display: inline-block; margin-top: 18px; background: transparent; border: 1px solid var(--line); color: var(--text); font-weight: 600; padding: 11px 20px; border-radius: 10px; text-decoration: none; }
   header .cta:hover { opacity: .9; }
   header .stats { margin: 18px auto 0; color: var(--muted); font-size: .9rem; }
   header .stats strong { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -205,6 +218,13 @@ export function renderPage(lang, stats) {
   <header>
     <h1>GeoSuite Open</h1>
     <p>${t.lead}</p>
+    <form class="check" action="/${lang}/check" method="get">
+      <label for="check-url">${t.checkLabel}</label>
+      <div class="row">
+        <input id="check-url" name="url" type="text" inputmode="url" autocomplete="url" placeholder="${t.checkPlaceholder}" required>
+        <button type="submit">${t.checkButton}</button>
+      </div>
+    </form>
     <a class="cta" href="https://trygeosuite.it" target="_blank" rel="noopener">${t.cta}</a>
     ${statsLine}
   </header>

@@ -14,6 +14,10 @@ on:
     paths:
       - 'worker.js'
       - 'page.js'
+      - 'check.js'
+      - 'check-page.js'
+      - 'preview.js'
+      - 'logos/**'
       - 'wrangler.toml'
       - '.github/workflows/deploy.yml'
   workflow_dispatch: {}
@@ -30,7 +34,13 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '22'
+
+      # The AI Readiness Check parsers, score, preview merge and page script.
+      # A failure here stops the deploy: the page script is generated from
+      # strings, and a syntax error in it would ship a page that does nothing.
+      - name: Test
+        run: node --test test/*.test.js
 
       - name: Deploy Worker
         uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0

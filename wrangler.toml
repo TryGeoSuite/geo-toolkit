@@ -11,7 +11,9 @@ routes = [
 # Bundle the OG share image (1200×630 PNG) as an ArrayBuffer the Worker serves
 # at /og.png — no external host, CSP-safe.
 rules = [
-  { type = "Data", globs = ["**/*.png"], fallthrough = false }
+  { type = "Data", globs = ["**/*.png"], fallthrough = false },
+  # The AI engines' logos shown on /check, copied from GeoSuite's frontend/public/logos.
+  { type = "Text", globs = ["**/*.svg"], fallthrough = false }
 ]
 
 # Privacy-light traffic counting (locale + path only, no visitor data), same
@@ -20,7 +22,56 @@ rules = [
 binding = "AE"
 dataset = "geo_toolkit_hits"
 
-# Static landing — zero deps, no nodejs_compat.
+# One data point per AI Readiness Check scan: target domain + the five scores.
+# Kept apart from the page hits so the two never mix in a query.
+[[analytics_engine_datasets]]
+binding = "SCANS"
+dataset = "ai_readiness_check"
+
+# The AI Readiness Check asks the robots.txt verdict to the ai-crawl-check Worker
+# (same account) instead of reimplementing it, so both show the same score.
+# Worker-to-Worker over the public workers.dev URL is not reliable, a service
+# binding is. check.js falls back to the public URL when the binding is absent
+# (local `wrangler dev` without the other Worker).
+[[services]]
+binding = "CRAWL"
+service = "ai-crawl-check"
+
+# The "what does the AI answer?" preview (preview.js). The model is any
+# OpenAI-compatible chat completions endpoint: change the three vars to switch
+# provider. The key is a secret, never here:
+#   npx wrangler secret put LLM_API_KEY
+# Without it /api/preview answers 503 "disabled" and the page simply hides the
+# preview, so the check keeps working.
+[vars]
+LLM_BASE_URL = "https://api.openai.com/v1"
+LLM_MODEL = "gpt-5.4-mini"
+LLM_LABEL = "OpenAI GPT-5.4 mini"
+LLM_REASONING_EFFORT = "low"
+# The answer uses web search, like ChatGPT does for "the best X" questions.
+# OpenAI Responses API only: set to "false" with any other provider.
+LLM_WEB_SEARCH = "true"
+# Cost caps: a cached domain (7 days) is free and does not count. A preview is
+# two answers with web search, ~7 cents: 200 a day is at most ~14 EUR.
+PREVIEW_PER_VISITOR_DAILY = "3"
+PREVIEW_DAILY_CAP = "200"
+
+# Exact daily counters for the caps above: one Durable Object instance, so two
+# requests can never both take the last slot.
+[[durable_objects.bindings]]
+name = "BUDGET"
+class_name = "PreviewBudget"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["PreviewBudget"]
+
+# One data point per paid preview: domain, category, country, position (0 = not named).
+[[analytics_engine_datasets]]
+binding = "PREVIEWS"
+dataset = "ai_answer_preview"
+
+# Zero deps, no nodejs_compat.
 #
 # ⚠️ Deploy to your PERSONAL / GeoSuite Cloudflare account — NOT the work/Cato
 # one (`wrangler whoami` to check). Pin it to be safe:
