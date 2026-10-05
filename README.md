@@ -16,6 +16,7 @@ no signup. Use them in your terminal, or right in the browser.
 | 📄 **llms.txt Generator** | Turn any site's `sitemap.xml` into an `llms.txt` — the index that tells AI models which pages matter. | [open](https://llmstxt-generator.geosuite.workers.dev) | [llms-txt-generator](https://github.com/TryGeoSuite/llms-txt-generator) |
 | 🔖 **Schema Templates** | Copy-paste schema.org JSON-LD templates (Organization, Product, FAQPage…) and validate your own. | [open](https://schema-templates.geosuite.workers.dev) | [schema-templates](https://github.com/TryGeoSuite/schema-templates) |
 | 🗺️ **Sitemap Builder** | Crawl a site and build a `sitemap.xml` — quick in the browser, or a full crawl from the CLI. | [open](https://sitemap-builder.geosuite.workers.dev) | [sitemap-builder](https://github.com/TryGeoSuite/sitemap-builder) |
+| ✅ **AI Readiness Check** | All four checks against one site: AI crawlers, `llms.txt`, schema.org JSON-LD and sitemap, with one score out of 100 and the free tool that fixes each gap. | [open](https://tools.trygeosuite.it/check) | this repo |
 
 ## Run from your terminal
 
@@ -41,6 +42,26 @@ that deploys to **tools.trygeosuite.it**. It does a bit more than serve static H
 - **Dogfoods GEO:** serves `/robots.txt` (welcomes AI crawlers → scores 100 on our
   own AI Crawl Check), `/llms.txt`, `/sitemap.xml`, and JSON-LD (Organization +
   an ItemList of the four `SoftwareApplication`s) in the page head.
+- **AI Readiness Check (`/check`, `/en/check`, `/it/check`):** runs the toolkit
+  against one site through `GET /api/scan?url=` ([`check.js`](check.js)). The
+  robots.txt verdict is asked to the `ai-crawl-check` Worker over a service
+  binding, so both pages show the same score; `llms.txt`, JSON-LD and sitemap are
+  plain fetches, no AI, no cost per scan. Results are cached per site for 10
+  minutes and counted in the `ai_readiness_check` Analytics Engine dataset (target
+  domain and scores, nothing about the visitor). A shared `/check?url=…` link
+  re-runs the scan. The result ends on GeoSuite's free analysis, prefilled with
+  the site, which is where the "do AI models cite you?" part lives.
+- **What does the AI answer? (`GET /api/preview?url=`, [`preview.js`](preview.js)):**
+  under the check, one real question to a model. A first call reads the home
+  page and writes the question a customer would ask (in the site's language,
+  without the brand); a second call answers it blind, twice in parallel with up to 3 web searches each, like ChatGPT does (OpenAI Responses API, ~15s and ~7 cents), names that come back both times ranked first; code decides whether the
+  site is among the five names. Limits: 7-day cache per domain (free, not
+  counted), 3 previews a day per visitor and 200 a day overall, counted exactly
+  in the `PreviewBudget` Durable Object (it stores only a day-salted hash of the
+  IP). Provider and model are the `LLM_*` vars in `wrangler.toml`, any
+  OpenAI-compatible endpoint; the key is a secret (`npx wrangler secret put
+  LLM_API_KEY`, or `.dev.vars` locally). Without the key the preview hides itself
+  and the check keeps working.
 - **Shareable:** Open Graph + Twitter card meta with a bundled 1200×630 `/og.png`
   (wrangler `Data` rule), plus an inline `/favicon.svg`.
 
