@@ -277,14 +277,29 @@ export function usableQuestion(question, brand, host) {
 }
 
 async function fetchHome(origin) {
-  const res = await fetch(origin + '/', {
-    headers: { 'user-agent': UA, accept: 'text/html' },
-    redirect: 'follow',
-    signal: AbortSignal.timeout(8000),
-  });
-  if (res.status >= 400) return '';
-  const t = await res.text();
-  return t.slice(0, MAX_HOME_BYTES);
+  try {
+    const res = await fetch(origin + '/', {
+      headers: { 'user-agent': UA, accept: 'text/html' },
+      redirect: 'follow',
+      signal: AbortSignal.timeout(8000),
+    });
+    if (res.status >= 400) return '';
+    const t = await res.text();
+    return t.slice(0, MAX_HOME_BYTES);
+  } catch {
+    return '';
+  }
+}
+
+// What the classifier gets to read. A home behind a bot wall (decathlon.it
+// refuses Cloudflare's egress, 05/10/2026) leaves only the domain: enough for a
+// known brand, and for an unknown one the model answers confident:false, which
+// becomes "unclear" instead of a guess. Free: no model call happens here, so
+// it runs before the budget is taken.
+export async function readSite(origin) {
+  const signals = siteSignals(await fetchHome(origin));
+  const readable = Boolean(signals.title || signals.description || signals.h1);
+  return { signals, readable };
 }
 
 function usableClassification(meta, signals, host) {
@@ -298,11 +313,8 @@ function usableClassification(meta, signals, host) {
   return { category, country, kind, brand, question };
 }
 
-export async function runPreview(origin, env, pageLang = 'en') {
-  const html = await fetchHome(origin);
-  if (!html) return { error: 'unreadable' };
-  const signals = siteSignals(html);
-  if (!signals.title && !signals.description && !signals.h1) return { error: 'unreadable' };
+export async function runPreview(origin, env, pageLang = 'en', site = null) {
+  const { signals, readable } = site || (await readSite(origin));
 
   const host = hostOf(origin);
   // The classification is cheap (a fraction of a cent) and sometimes comes back
@@ -312,7 +324,11 @@ export async function runPreview(origin, env, pageLang = 'en') {
     const meta = await chatJson(
       env,
       CLASSIFY_SYSTEM,
-      JSON.stringify({ answer_language: pageLang === 'it' ? 'Italian' : 'English', domain: host, ...signals }),
+      JSON.stringify({
+        answer_language: pageLang === 'it' ? 'Italian' : 'English',
+        domain: host,
+        ...(readable ? signals : { note: 'The home page could not be read. Use only the domain and what you reliably know about this brand; if you do not know it, set confident to false.' }),
+      }),
     );
     c = usableClassification(meta, signals, host);
   }
@@ -360,7 +376,15 @@ export class PreviewBudget {
   }
 
   async fetch(request) {
-    const { day, visitor, perVisitor, global } = await request.json();
+    const { day, visitor, perVisitor, global, refund } = await request.json();
+    if (refund) {
+      // Only today's counts: a refund that arrives after midnight has nothing to give back.
+      if ((await this.storage.get('day')) !== day) return Response.json({ ok: true });
+      const total = (await this.storage.get('total')) || 0;
+      const mine = (await this.storage.get('v:' + visitor)) || 0;
+      await this.storage.put({ total: Math.max(0, total - 1), ['v:' + visitor]: Math.max(0, mine - 1) });
+      return Response.json({ ok: true });
+    }
     if ((await this.storage.get('day')) !== day) {
       await this.storage.deleteAll();
       await this.storage.put('day', day);
@@ -377,17 +401,27 @@ export class PreviewBudget {
 async function takeBudget(env, ip) {
   if (!env.BUDGET) return { ok: true };
   const day = new Date().toISOString().slice(0, 10);
+  const visitor = (await sha256(day + ':' + ip)).slice(0, 32);
   const stub = env.BUDGET.get(env.BUDGET.idFromName('global'));
   const res = await stub.fetch('https://budget/take', {
     method: 'POST',
     body: JSON.stringify({
       day,
-      visitor: (await sha256(day + ':' + ip)).slice(0, 32),
+      visitor,
       perVisitor: Number(env.PREVIEW_PER_VISITOR_DAILY || 3),
       global: Number(env.PREVIEW_DAILY_CAP || 200),
     }),
   });
-  return res.json();
+  return { ...(await res.json()), day, visitor };
+}
+
+async function giveBack(env, budget) {
+  if (!env.BUDGET || !budget.visitor) return;
+  const stub = env.BUDGET.get(env.BUDGET.idFromName('global'));
+  await stub.fetch('https://budget/refund', {
+    method: 'POST',
+    body: JSON.stringify({ day: budget.day, visitor: budget.visitor, refund: true }),
+  });
 }
 
 // GET /api/preview?url=: cache first, then the budget, then the two calls.
@@ -408,18 +442,27 @@ export async function apiPreview(request, url, env, ctx, originOf) {
   const hit = await caches.default.match(key);
   if (hit) return reply({ ...(await hit.json()), cached: true });
 
+  const site = await readSite(origin);
+
   const budget = await takeBudget(env, request.headers.get('cf-connecting-ip') || 'unknown');
   if (!budget.ok) return reply({ error: budget.reason === 'global' ? 'busy' : 'limit' }, 429);
 
   let result;
   try {
-    result = await runPreview(origin, env, pageLang);
+    result = await runPreview(origin, env, pageLang, site);
   } catch (e) {
     // The reason goes to the Worker log (wrangler tail), never to the visitor.
     console.error('preview failed', hostOf(origin), e && e.message);
+    await giveBack(env, budget);
     return reply({ error: 'llm' }, 502);
   }
-  if (result.error) return reply(result, 422);
+  // A preview that showed nothing is not one of the visitor's three: on
+  // 05/10/2026 a walled site used one up and left the visitor at the limit
+  // after two real answers.
+  if (result.error) {
+    await giveBack(env, budget);
+    return reply(result, 422);
+  }
 
   if (env.PREVIEWS) {
     try {
