@@ -126,3 +126,16 @@ test('cleanReason drops inline citations and never cuts mid-word', () => {
   assert.ok(out.endsWith('parola\u2026'), out);
   assert.ok(out.length <= 141);
 });
+
+test('PreviewBudget: a refund gives the slot back, and never goes below zero', async () => {
+  const b = new PreviewBudget(fakeState());
+  const base = { day: '2026-10-05', perVisitor: 1, global: 5 };
+  assert.equal((await take(b, { ...base, visitor: 'a' })).ok, true);
+  assert.deepEqual(await take(b, { ...base, visitor: 'a' }), { ok: false, reason: 'visitor' });
+  await take(b, { day: base.day, visitor: 'a', refund: true });
+  assert.equal((await take(b, { ...base, visitor: 'a' })).ok, true);
+  await take(b, { day: base.day, visitor: 'z', refund: true });
+  // A refund from yesterday changes nothing today.
+  await take(b, { day: '2026-10-04', visitor: 'a', refund: true });
+  assert.deepEqual(await take(b, { ...base, visitor: 'a' }), { ok: false, reason: 'visitor' });
+});
