@@ -1,7 +1,7 @@
 // Unit tests for the pure parts of the AI answer preview: run with `node --test`.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { siteSignals, hostOf, findSelf, cleanRecommendations, cleanName, cleanReason, usableQuestion, PreviewBudget } from '../preview.js';
+import { siteSignals, hostOf, findSelf, cleanRecommendations, cleanName, cleanReason, usableQuestion, usableOwnQuestion, PreviewBudget } from '../preview.js';
 
 test('siteSignals reads only what the site says about itself', () => {
   const html = `<html lang="it-IT"><head>
@@ -138,4 +138,12 @@ test('PreviewBudget: a refund gives the slot back, and never goes below zero', a
   // A refund from yesterday changes nothing today.
   await take(b, { day: '2026-10-04', visitor: 'a', refund: true });
   assert.deepEqual(await take(b, { ...base, visitor: 'a' }), { ok: false, reason: 'visitor' });
+});
+
+test('usableOwnQuestion takes a long brief but not one that names the site', () => {
+  const brief = 'Quali sono i migliori tool GEO per una startup italiana con budget limitato? ' + 'Confronta soluzioni italiane e internazionali. '.repeat(4);
+  assert.equal(usableOwnQuestion(brief, 'trygeosuite.it'), brief.replace(/\s+/g, ' ').trim());
+  assert.equal(usableOwnQuestion('Meglio TryGeoSuite o Peec?', 'trygeosuite.it'), '');
+  assert.equal(usableOwnQuestion('corta', 'x.it'), '');
+  assert.equal(usableOwnQuestion('a'.repeat(501), 'x.it'), '');
 });

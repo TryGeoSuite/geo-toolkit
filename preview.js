@@ -302,18 +302,32 @@ export async function readSite(origin) {
   return { signals, readable };
 }
 
-function usableClassification(meta, signals, host) {
+function usableClassification(meta, signals, host, needQuestion = true) {
   const clean = (v, n) => String(v || '').replace(/[\r\n"]/g, ' ').trim().slice(0, n);
   const category = clean(meta.category, 60);
   const country = clean(meta.country, 40);
   const kind = clean(meta.kind, 40);
   const brand = String(meta.brand || signals.siteName || '').slice(0, 80);
   const question = usableQuestion(meta.question, brand, host);
-  if (!meta.confident || !category || !country || !kind || !question) return null;
+  if (!meta.confident || !category || !country || !kind || (needQuestion && !question)) return null;
   return { category, country, kind, brand, question };
 }
 
-export async function runPreview(origin, env, pageLang = 'en', site = null) {
+// A question the visitor writes. Longer than the generated ones (people paste a
+// whole brief), and checked the same way: a question that names the site would
+// make "the AI names you" a tautology.
+export function usableOwnQuestion(raw, host) {
+  const q = String(raw || '').replace(/\s+/g, ' ').trim();
+  if (q.length < 10 || q.length > 500) return '';
+  const nh = norm(host.split('.')[0]);
+  if (nh.length >= 3 && norm(q).includes(nh)) return '';
+  return q;
+}
+
+// ownQuestion: the visitor's own question, already through usableOwnQuestion.
+// The site is still classified, for the brand to look for and the kind of
+// answer to ask for; the generated question is just not used.
+export async function runPreview(origin, env, pageLang = 'en', site = null, ownQuestion = '') {
   const { signals, readable } = site || (await readSite(origin));
 
   const host = hostOf(origin);
@@ -330,10 +344,15 @@ export async function runPreview(origin, env, pageLang = 'en', site = null) {
         ...(readable ? signals : { note: 'The home page could not be read. Use only the domain and what you reliably know about this brand; if you do not know it, set confident to false.' }),
       }),
     );
-    c = usableClassification(meta, signals, host);
+    c = usableClassification(meta, signals, host, !ownQuestion);
+  }
+  if (!c && ownQuestion) {
+    c = { category: '', country: '', kind: pageLang === 'it' ? 'soluzioni' : 'options', brand: signals.siteName || host.split('.')[0], question: '' };
   }
   if (!c) return { error: 'unclear' };
-  const { category, country, kind, brand, question } = c;
+  const { category, country, kind, brand } = c;
+  const question = ownQuestion || c.question;
+  if (ownQuestion && norm(brand).length >= 3 && norm(ownQuestion).includes(norm(brand))) return { error: 'names_site' };
 
   // The same question twice, in parallel: one answer is partly luck (a single
   // run named "Search Party" next to Peec and Otterly), the names that come
@@ -352,6 +371,7 @@ export async function runPreview(origin, env, pageLang = 'en', site = null) {
     category,
     country,
     question,
+    ownQuestion: Boolean(ownQuestion),
     model: env.LLM_LABEL || env.LLM_MODEL,
     webSearch: env.LLM_WEB_SEARCH === 'true',
     ...merged,
@@ -438,7 +458,11 @@ export async function apiPreview(request, url, env, ctx, originOf) {
   }
 
   const pageLang = url.searchParams.get('lang') === 'it' ? 'it' : 'en';
-  const key = new Request(url.origin + '/__preview/v5/' + pageLang + '/' + encodeURIComponent(hostOf(origin)), { method: 'GET' });
+  const rawOwn = (url.searchParams.get('q') || '').slice(0, 600);
+  const ownQuestion = rawOwn ? usableOwnQuestion(rawOwn, hostOf(origin)) : '';
+  if (rawOwn && !ownQuestion) return reply({ error: 'bad_question' }, 400);
+  const qKey = ownQuestion ? '/q/' + (await sha256(ownQuestion.toLowerCase())).slice(0, 16) : '';
+  const key = new Request(url.origin + '/__preview/v6/' + pageLang + '/' + encodeURIComponent(hostOf(origin)) + qKey, { method: 'GET' });
   const hit = await caches.default.match(key);
   if (hit) return reply({ ...(await hit.json()), cached: true });
 
@@ -449,7 +473,7 @@ export async function apiPreview(request, url, env, ctx, originOf) {
 
   let result;
   try {
-    result = await runPreview(origin, env, pageLang, site);
+    result = await runPreview(origin, env, pageLang, site, ownQuestion);
   } catch (e) {
     // The reason goes to the Worker log (wrangler tail), never to the visitor.
     console.error('preview failed', hostOf(origin), e && e.message);

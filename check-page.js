@@ -64,6 +64,9 @@ const S = {
     ctaText: 'GeoSuite asks ChatGPT, Gemini and Perplexity the questions your customers really ask, and tells you where you appear, who wins instead and what to fix first. The report arrives by email.',
     ctaButton: 'Get the free analysis',
     share: 'Copy link to this result',
+    ownLabel: 'Try your own question',
+    ownPlaceholder: 'e.g. What are the best tools to see if ChatGPT recommends my company?',
+    ownButton: 'Ask',
     footer: 'A free tool by <a href="https://trygeosuite.it">GeoSuite</a>, the Italian platform for AI visibility. <a href="https://github.com/TryGeoSuite/geo-toolkit">Open source</a> (MIT). We read only the public pages of the site you enter.',
   },
   it: {
@@ -88,6 +91,9 @@ const S = {
     ctaText: 'GeoSuite fa a ChatGPT, Gemini e Perplexity le domande che i tuoi clienti fanno davvero, e ti dice dove compari, chi vince al posto tuo e cosa correggere per primo. Il report arriva via mail.',
     ctaButton: 'Richiedi l’analisi gratuita',
     share: 'Copia il link a questo risultato',
+    ownLabel: 'Prova con la tua domanda',
+    ownPlaceholder: 'Es. Quali strumenti mi dicono se ChatGPT consiglia la mia azienda?',
+    ownButton: 'Chiedi',
     footer: 'Uno strumento gratuito di <a href="https://trygeosuite.it">GeoSuite</a>, la piattaforma italiana per la visibilità sulle AI. <a href="https://github.com/TryGeoSuite/geo-toolkit">Open source</a> (MIT). Leggiamo solo le pagine pubbliche del sito che inserisci.',
   },
 };
@@ -120,7 +126,11 @@ const C = {
       limit: 'You have used today’s free AI answers. The technical check below still works, and the full analysis has no such limit.',
       busy: 'Too many requests today: the AI answer is paused until tomorrow. The technical check below still works.',
       unclear: 'From your home page we could not tell what you sell, so we could not ask the question.',
+      names_site: 'Your question names the site itself: ask it the way a customer who does not know you yet would.',
+      bad_question: 'Write a question between 10 and 500 characters, without your site\u2019s name.',
     },
+    ownNote: 'You wrote this question.',
+    cachedOn: (d) => ` This answer was given on ${d} and is kept for 7 days.`,
     crawlersOk: (n) => `${n} AI crawlers allowed, none of the main ones blocked.`,
     crawlersBlocked: (list, more) => `Blocked: ${list}${more ? ` and ${more} more` : ''}.`,
     crawlersManaged: (list) => `A managed section (e.g. Cloudflare) overrides your robots.txt and blocks: ${list}.`,
@@ -163,7 +173,11 @@ const C = {
       limit: 'Hai usato le risposte AI gratuite di oggi. Il controllo tecnico qui sotto funziona lo stesso, e l’analisi completa non ha questo limite.',
       busy: 'Troppe richieste oggi: la risposta AI riprende domani. Il controllo tecnico qui sotto funziona lo stesso.',
       unclear: 'Dalla tua home non capiamo cosa vendi, quindi non abbiamo potuto fare la domanda.',
+      names_site: 'La domanda nomina il sito stesso: falla come la farebbe un cliente che ancora non ti conosce.',
+      bad_question: 'Scrivi una domanda fra 10 e 500 caratteri, senza il nome del tuo sito.',
     },
+    ownNote: 'La domanda l\u2019hai scritta tu.',
+    cachedOn: (d) => ` Questa risposta è del ${d} e viene conservata per 7 giorni.`,
     crawlersOk: (n) => `${n} crawler AI ammessi, nessuno dei principali bloccato.`,
     crawlersBlocked: (list, more) => `Bloccati: ${list}${more ? ` e altri ${more}` : ''}.`,
     crawlersManaged: (list) => `Una sezione gestita (per esempio Cloudflare) scavalca il tuo robots.txt e blocca: ${list}.`,
@@ -228,9 +242,10 @@ function exampleCard(t, lang) {
 }
 
 // lang: 'en' | 'it'. initialUrl: the ?url= of a shared link, or ''.
-export function renderCheckPage(lang, initialUrl) {
+// initialQuestion: the ?q= of a shared link, the visitor's own question.
+export function renderCheckPage(lang, initialUrl, initialQuestion = '') {
   const t = S[lang] || S.en;
-  const config = { lang, weights: WEIGHTS, tools: TOOL_LINKS, analysis: ANALYSIS, icons: ICONS };
+  const config = { lang, weights: WEIGHTS, tools: TOOL_LINKS, analysis: ANALYSIS, icons: ICONS, q: String(initialQuestion || '').slice(0, 500) };
 
   return `<!doctype html>
 <html lang="${lang}">
@@ -293,8 +308,8 @@ export function renderCheckPage(lang, initialUrl) {
   .eyebrow { display:inline-block; font-size:.8125rem; font-weight:600; color:var(--accent-ink); background:var(--accent-soft); padding:4px 10px; border-radius:999px; margin:0 0 16px; }
   h1 { font-size:clamp(2rem, 4.6vw, 3rem); line-height:1.08; letter-spacing:-.03em; margin:0 0 14px; text-wrap:balance; }
   .lead { color:var(--ink-2); font-size:1.125rem; margin:0 0 24px; max-width:48ch; }
-  form { display:flex; gap:8px; }
-  form label { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+  #f { display:flex; gap:8px; }
+  #f label { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
   input { flex:1; min-width:0; height:52px; background:var(--surface); border:1px solid var(--line-2); color:var(--ink); border-radius:8px; padding:0 16px; font:inherit; font-size:1.0625rem; }
   input::placeholder { color:var(--ink-3); }
   button { font:inherit; cursor:pointer; }
@@ -346,6 +361,14 @@ export function renderCheckPage(lang, initialUrl) {
   .stages li.done { color:var(--ink-2); } .stages li.done::before { background:var(--ok); }
   @keyframes pulse { 50% { opacity:.35; } }
   .notice { color:var(--ink-2); margin:12px 0 0; }
+  .own { margin-top:20px; padding-top:16px; border-top:1px solid var(--line); }
+  .own label { display:block; font-size:.875rem; font-weight:600; color:var(--ink-2); margin-bottom:8px; }
+  .own .row { display:flex; gap:8px; width:100%; }
+  .own input { flex:1; }
+  .own input { height:44px; font-size:.9375rem; }
+  .own button { height:44px; min-width:96px; }
+  .own-note { display:inline-block; font-size:.75rem; font-weight:600; color:var(--accent-ink); background:var(--accent-soft); padding:2px 8px; border-radius:999px; margin:0 0 8px; }
+  @media (max-width:640px) { .own .row { flex-direction:column; } }
 
   .read { margin-top:16px; }
   .read-head { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:20px 24px; }
@@ -390,7 +413,7 @@ export function renderCheckPage(lang, initialUrl) {
 
   @media (max-width:640px) {
     .hero { padding-top:20px; }
-    form { flex-direction:column; }
+    #f { flex-direction:column; }
     .primary { width:100%; }
     .answer { padding:18px; }
     ol.recs li { grid-template-columns:24px 1fr; }
@@ -436,6 +459,13 @@ export function renderCheckPage(lang, initialUrl) {
     <section class="panel answer" id="answer" hidden aria-live="polite" aria-labelledby="answer-label">
       <p class="label" id="answer-label">${t.answerHead}</p>
       <div id="answer-body"></div>
+      <form class="own" id="own" hidden novalidate>
+        <label for="own-q">${t.ownLabel}</label>
+        <div class="row">
+          <input id="own-q" type="text" maxlength="500" placeholder="${esc(t.ownPlaceholder)}" value="${esc(String(initialQuestion || '').slice(0, 500))}">
+          <button class="primary" id="own-go" type="submit">${t.ownButton}</button>
+        </div>
+      </form>
     </section>
 
     <section class="panel read" id="read" hidden aria-labelledby="read-title">
@@ -495,12 +525,14 @@ export function renderCheckPage(lang, initialUrl) {
 
   function showAnswer(p) {
     clearInterval(stageTimer);
+    $('own').hidden = false;
     var body = $('answer-body'); body.textContent = '';
     if (p.error) {
       if (T.errors[p.error]) body.appendChild(el('p', 'notice', T.errors[p.error]));
       else $('answer').hidden = true;
       return;
     }
+    if (p.ownQuestion) body.appendChild(el('span', 'own-note', T.ownNote));
     body.appendChild(el('p', 'q', '\\u201C' + p.question + '\\u201D'));
     var total = p.totalRuns || 1, mentions = p.mentions || 0;
     var tone = p.position && mentions === total ? 'yes' : mentions ? 'mid' : 'no';
@@ -526,7 +558,10 @@ export function renderCheckPage(lang, initialUrl) {
       ol.appendChild(li);
     });
     body.appendChild(ol);
-    body.appendChild(el('p', 'method', T.method(p.model, total, p.webSearch)));
+    // A shared link may serve a cached answer: say when it was given, so an
+    // answer from days ago never reads as today's.
+    var when = p.cached && p.askedAt ? T.cachedOn(new Date(p.askedAt).toLocaleDateString(CFG.lang === 'it' ? 'it-IT' : 'en-GB', { day: 'numeric', month: 'long' })) : '';
+    body.appendChild(el('p', 'method', T.method(p.model, total, p.webSearch) + when));
   }
 
   // ---- can the AI read the site ----
@@ -589,8 +624,27 @@ export function renderCheckPage(lang, initialUrl) {
     return CFG.analysis + '?' + q.toString();
   }
 
-  function get(path, value) {
-    return fetch(path + '?url=' + encodeURIComponent(value) + '&lang=' + CFG.lang).then(function (res) { return res.json(); });
+  function get(path, value, q) {
+    return fetch(path + '?url=' + encodeURIComponent(value) + '&lang=' + CFG.lang + (q ? '&q=' + encodeURIComponent(q) : '')).then(function (res) { return res.json(); });
+  }
+
+  var site = '', ownQ = CFG.q || '';
+  function shareUrl() {
+    return '/' + CFG.lang + '/check?url=' + encodeURIComponent(site) + (ownQ ? '&q=' + encodeURIComponent(ownQ) : '');
+  }
+
+  // The visitor's own question: only the AI answer runs again, the reading
+  // check below does not depend on the question.
+  function askOwn(q) {
+    q = q.trim();
+    if (!site || !q) return;
+    ownQ = q;
+    var me = ++run;
+    $('own-go').disabled = true;
+    showStages();
+    get('/api/preview', site, q).then(function (p) { if (me === run) showAnswer(p); })
+      .catch(function () { if (me === run) { clearInterval(stageTimer); $('answer-body').textContent = T.errors.generic; } })
+      .then(function () { $('own-go').disabled = false; history.replaceState(null, '', shareUrl()); });
   }
 
   function start(value) {
@@ -615,10 +669,11 @@ export function renderCheckPage(lang, initialUrl) {
       showRead(r);
       $('cta-link').href = analysisUrl(r.origin);
       $('cta').hidden = false; $('sharebar').hidden = false;
-      history.replaceState(null, '', '/' + CFG.lang + '/check?url=' + encodeURIComponent(host(r.origin)));
+      site = host(r.origin);
+      history.replaceState(null, '', shareUrl());
     }).catch(function () { if (me === run) $('err').textContent = T.errors.generic; });
 
-    var answer = get('/api/preview', value).then(function (p) {
+    var answer = get('/api/preview', value, ownQ).then(function (p) {
       return scan.then(function (s) { if (me === run && s !== 'stop') showAnswer(p); });
     }).catch(function () { if (me === run) { clearInterval(stageTimer); $('answer').hidden = true; } });
 
@@ -629,6 +684,7 @@ export function renderCheckPage(lang, initialUrl) {
   }
 
   $('f').addEventListener('submit', function (e) { e.preventDefault(); start($('u').value); });
+  $('own').addEventListener('submit', function (e) { e.preventDefault(); askOwn($('own-q').value); });
   $('share').addEventListener('click', function () {
     var b = this, old = b.textContent;
     navigator.clipboard.writeText(location.href).then(function () {
