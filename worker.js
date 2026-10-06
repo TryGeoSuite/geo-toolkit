@@ -223,7 +223,8 @@ export default {
       if (path === '/check') headers.vary = 'Accept-Language';
       // A shared link carries the site in ?url=, and the page re-runs the scan.
       const initial = (url.searchParams.get('url') || '').slice(0, 200);
-      return new Response(renderCheckPage(lang, initial), { headers });
+      const question = (url.searchParams.get('q') || '').slice(0, 500);
+      return new Response(renderCheckPage(lang, initial, question), { headers });
     }
 
     if (path !== '/' && path !== '/en' && path !== '/it') {
