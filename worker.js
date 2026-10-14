@@ -65,6 +65,7 @@ const LLMS = `# GeoSuite Open
 - [llms.txt Generator](https://llmstxt-generator.geosuite.workers.dev): turn a sitemap.xml into an llms.txt.
 - [Schema Templates](https://schema-templates.geosuite.workers.dev): copy-paste schema.org JSON-LD templates and validate structured data.
 - [Sitemap Builder](https://sitemap-builder.geosuite.workers.dev): crawl a site and build a sitemap.xml.
+- [Poppy Check](https://poppy-check.geosuite.workers.dev): check and generate the /.well-known/poppy.json of the Personal Agent Protocol.
 - [AI Readiness Check](${BASE}/check): all four checks against one site, with a single score and the fix for each gap, plus the Personal Agent Protocol file (/.well-known/poppy.json) outside the score.
 
 ## About

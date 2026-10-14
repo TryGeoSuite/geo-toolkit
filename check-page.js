@@ -12,7 +12,6 @@
 
 import { WEIGHTS } from './check.js';
 import { FONTS, BASE_CSS, ENGINES } from './theme.js';
-import { SPEC_URL } from './poppy.js';
 
 const BASE = 'https://tools.trygeosuite.it';
 const ANALYSIS = 'https://trygeosuite.it/analisi-gratuita';
@@ -22,6 +21,7 @@ const TOOL_LINKS = {
   llms: 'https://llmstxt-generator.geosuite.workers.dev',
   schema: 'https://schema-templates.geosuite.workers.dev',
   sitemap: 'https://sitemap-builder.geosuite.workers.dev',
+  agents: 'https://poppy-check.geosuite.workers.dev',
 };
 
 // A real result, shown before the visitor runs one, so they know what they get.
@@ -164,7 +164,7 @@ const C = {
       unsupported_major_version: 'the protocol version is not supported',
     },
     notScored: 'not in the score',
-    spec: 'Read the spec',
+    create: 'Create it free',
     refused: (st) => (st ? `Your home page refused our reader (HTTP ${st}), so we could not check this and left it out of the score. A wall like that often stops AI crawlers too.` : 'Your home page did not answer in time, so we could not check this and left it out of the score.'),
   },
   it: {
@@ -235,7 +235,7 @@ const C = {
       unsupported_major_version: 'la versione del protocollo non è supportata',
     },
     notScored: 'fuori dal voto',
-    spec: 'Leggi la specifica',
+    create: 'Crealo gratis',
     refused: (st) => (st ? `La tua home ha rifiutato la lettura (HTTP ${st}), quindi non abbiamo potuto controllarla e l\u2019abbiamo esclusa dal voto. Un muro così spesso ferma anche i crawler AI.` : 'La tua home non ha risposto in tempo, quindi non abbiamo potuto controllarla e l\u2019abbiamo esclusa dal voto.'),
   },
 };
@@ -291,7 +291,7 @@ export function exampleCard(lang) {
 // initialQuestion: the ?q= of a shared link, the visitor's own question.
 export function renderCheckPage(lang, initialUrl, initialQuestion = '') {
   const t = S[lang] || S.en;
-  const config = { lang, weights: WEIGHTS, tools: TOOL_LINKS, analysis: ANALYSIS, icons: ICONS, spec: SPEC_URL, q: String(initialQuestion || '').slice(0, 500) };
+  const config = { lang, weights: WEIGHTS, tools: TOOL_LINKS, analysis: ANALYSIS, icons: ICONS, q: String(initialQuestion || '').slice(0, 500) };
 
   return `<!doctype html>
 <html lang="${lang}">
@@ -562,8 +562,8 @@ ${BASE_CSS}
     li.appendChild(main);
     var side = el('div', 'side');
     side.appendChild(el('span', 'pts', T.notScored));
-    var link = el('a', null, T.spec + ' \\u2192');
-    link.href = CFG.spec; link.target = '_blank'; link.rel = 'noopener';
+    var link = el('a', null, (st === 'valid' ? T.open : st === 'invalid' ? T.fix : T.create) + ' \\u2192');
+    link.href = CFG.tools.agents; link.target = '_blank'; link.rel = 'noopener';
     side.appendChild(link);
     li.appendChild(side);
     ul.appendChild(li);
