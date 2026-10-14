@@ -16,7 +16,7 @@ no signup. Use them in your terminal, or right in the browser.
 | 📄 **llms.txt Generator** | Turn any site's `sitemap.xml` into an `llms.txt` — the index that tells AI models which pages matter. | [open](https://llmstxt-generator.geosuite.workers.dev) | [llms-txt-generator](https://github.com/TryGeoSuite/llms-txt-generator) |
 | 🔖 **Schema Templates** | Copy-paste schema.org JSON-LD templates (Organization, Product, FAQPage…) and validate your own. | [open](https://schema-templates.geosuite.workers.dev) | [schema-templates](https://github.com/TryGeoSuite/schema-templates) |
 | 🗺️ **Sitemap Builder** | Crawl a site and build a `sitemap.xml` — quick in the browser, or a full crawl from the CLI. | [open](https://sitemap-builder.geosuite.workers.dev) | [sitemap-builder](https://github.com/TryGeoSuite/sitemap-builder) |
-| ✅ **AI Readiness Check** | All four checks against one site: AI crawlers, `llms.txt`, schema.org JSON-LD and sitemap, with one score out of 100 and the free tool that fixes each gap. | [open](https://tools.trygeosuite.it/check) | this repo |
+| ✅ **AI Readiness Check** | All four checks against one site: AI crawlers, `llms.txt`, schema.org JSON-LD and sitemap, with one score out of 100 and the free tool that fixes each gap. Plus, outside the score, the Personal Agent Protocol file (`/.well-known/poppy.json`). | [open](https://tools.trygeosuite.it/check) | this repo |
 
 ## Run from your terminal
 
@@ -44,6 +44,8 @@ that deploys to **tools.trygeosuite.it**. It does a bit more than serve static H
   an ItemList of the four `SoftwareApplication`s) in the page head.
 - **AI Readiness Check (`/check`, `/en/check`, `/it/check`):** runs the toolkit
   against one site through `GET /api/scan?url=` ([`check.js`](check.js)). The
+  `/.well-known/poppy.json` is checked like an agent would (draft 0.1 of the
+  Personal Agent Protocol, [`poppy.js`](poppy.js)), shown but outside the score. The
   robots.txt verdict is asked to the `ai-crawl-check` Worker over a service
   binding, so both pages show the same score; `llms.txt`, JSON-LD and sitemap are
   plain fetches, no AI, no cost per scan. Results are cached per site for 10

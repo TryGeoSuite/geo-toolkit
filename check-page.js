@@ -12,6 +12,7 @@
 
 import { WEIGHTS } from './check.js';
 import { FONTS, BASE_CSS, ENGINES } from './theme.js';
+import { SPEC_URL } from './poppy.js';
 
 const BASE = 'https://tools.trygeosuite.it';
 const ANALYSIS = 'https://trygeosuite.it/analisi-gratuita';
@@ -140,6 +141,30 @@ const C = {
     llmsNone: 'No /llms.txt: the index that tells models which pages matter.',
     sitemapOk: (n, idx) => (idx ? `Sitemap index found (${n} sitemaps).` : `Found, ${n} URLs.`),
     sitemapNone: 'No sitemap found in robots.txt or at /sitemap.xml.',
+    agentsName: 'Personal agents',
+    agentsState: { valid: 'Published', missing: 'Not published', invalid: 'Invalid' },
+    agentsValid: 'Your /.well-known/poppy.json is valid: a personal assistant finds the site and knows how to sign in on behalf of customers.',
+    agentsMissing: 'No /.well-known/poppy.json. It is the Personal Agent Protocol file, the October 2026 standard personal assistants use to find a company and act for its customers: not expected yet.',
+    agentsInvalid: (list) => `Your /.well-known/poppy.json is there, but a personal assistant would reject it: ${list}.`,
+    agentsIssue: {
+      domain_mismatch: 'the declared domain is not the site\u2019s',
+      domain_not_in_issuer: 'the sign-in server does not list this domain in poppy_domains',
+      invalid_agent_protocol: 'a conversation channel has no type or no https address',
+      invalid_api_entry: 'an API has no type, address or description',
+      invalid_browser_session_endpoint: 'the browser session address is not https',
+      issuer_metadata_invalid: 'the sign-in server metadata cannot be read',
+      issuer_metadata_unreachable: 'the sign-in server metadata does not respond',
+      issuer_mismatch: 'the sign-in server declares a different issuer',
+      missing_auth_issuer: 'the sign-in server (auth.issuer) is missing',
+      missing_organization: 'the organization name or domain is missing',
+      missing_protocol_version: 'the protocol version is missing',
+      no_channels: 'it declares no channel (conversation, API or website)',
+      not_an_object: 'the file is not a JSON object',
+      not_https: 'the file goes through a non-https address',
+      unsupported_major_version: 'the protocol version is not supported',
+    },
+    notScored: 'not in the score',
+    spec: 'Read the spec',
     refused: (st) => (st ? `Your home page refused our reader (HTTP ${st}), so we could not check this and left it out of the score. A wall like that often stops AI crawlers too.` : 'Your home page did not answer in time, so we could not check this and left it out of the score.'),
   },
   it: {
@@ -187,6 +212,30 @@ const C = {
     llmsNone: 'Manca /llms.txt: l’indice che dice alle AI quali pagine contano.',
     sitemapOk: (n, idx) => (idx ? `Trovato un indice di sitemap (${n} sitemap).` : `Trovata, ${n} URL.`),
     sitemapNone: 'Nessuna sitemap nel robots.txt né su /sitemap.xml.',
+    agentsName: 'Agenti personali',
+    agentsState: { valid: 'Pubblicato', missing: 'Non pubblicato', invalid: 'Non valido' },
+    agentsValid: 'Il tuo /.well-known/poppy.json è valido: un assistente personale trova il sito e sa come entrare per conto dei clienti.',
+    agentsMissing: 'Nessun /.well-known/poppy.json. È il file del Personal Agent Protocol, lo standard di ottobre 2026 con cui gli assistenti personali trovano un\u2019azienda e lavorano per i suoi clienti: oggi non è ancora richiesto.',
+    agentsInvalid: (list) => `Il tuo /.well-known/poppy.json c\u2019è, ma un assistente personale lo scarterebbe: ${list}.`,
+    agentsIssue: {
+      domain_mismatch: 'il dominio dichiarato non è quello del sito',
+      domain_not_in_issuer: 'il server di login non elenca questo dominio in poppy_domains',
+      invalid_agent_protocol: 'un canale di conversazione è senza tipo o senza indirizzo https',
+      invalid_api_entry: 'un\u2019API è senza tipo, indirizzo o descrizione',
+      invalid_browser_session_endpoint: 'l\u2019indirizzo per la sessione nel browser non è https',
+      issuer_metadata_invalid: 'i metadati del server di login non sono leggibili',
+      issuer_metadata_unreachable: 'i metadati del server di login non rispondono',
+      issuer_mismatch: 'il server di login dichiara un issuer diverso',
+      missing_auth_issuer: 'manca il server di login (auth.issuer)',
+      missing_organization: 'mancano nome o dominio dell\u2019organizzazione',
+      missing_protocol_version: 'manca la versione del protocollo',
+      no_channels: 'non dichiara nessun canale (conversazione, API o sito)',
+      not_an_object: 'il file non è un oggetto JSON',
+      not_https: 'il file passa per un indirizzo non https',
+      unsupported_major_version: 'la versione del protocollo non è supportata',
+    },
+    notScored: 'fuori dal voto',
+    spec: 'Leggi la specifica',
     refused: (st) => (st ? `La tua home ha rifiutato la lettura (HTTP ${st}), quindi non abbiamo potuto controllarla e l\u2019abbiamo esclusa dal voto. Un muro così spesso ferma anche i crawler AI.` : 'La tua home non ha risposto in tempo, quindi non abbiamo potuto controllarla e l\u2019abbiamo esclusa dal voto.'),
   },
 };
@@ -242,7 +291,7 @@ export function exampleCard(lang) {
 // initialQuestion: the ?q= of a shared link, the visitor's own question.
 export function renderCheckPage(lang, initialUrl, initialQuestion = '') {
   const t = S[lang] || S.en;
-  const config = { lang, weights: WEIGHTS, tools: TOOL_LINKS, analysis: ANALYSIS, icons: ICONS, q: String(initialQuestion || '').slice(0, 500) };
+  const config = { lang, weights: WEIGHTS, tools: TOOL_LINKS, analysis: ANALYSIS, icons: ICONS, spec: SPEC_URL, q: String(initialQuestion || '').slice(0, 500) };
 
   return `<!doctype html>
 <html lang="${lang}">
@@ -302,7 +351,7 @@ ${BASE_CSS}
   .chips { display:flex; flex-wrap:wrap; gap:8px; list-style:none; margin:0; padding:0; }
   .chips li { display:inline-flex; align-items:center; gap:6px; padding:4px 10px 4px 6px; border-radius:999px; background:var(--sunk); font-size:.8125rem; font-weight:500; }
   .chips svg { width:16px; height:16px; } .chips svg path { stroke:#fff; }
-  .chips .ok svg circle { fill:var(--ok); } .chips .partial svg circle { fill:var(--warn); } .chips .missing svg circle { fill:var(--crit); }
+  .chips .ok svg circle { fill:var(--ok); } .chips .partial svg circle { fill:var(--warn); } .chips .missing svg circle { fill:var(--crit); } .chips .info svg circle { fill:var(--ink-3); }
   .score { font-variant-numeric:tabular-nums; font-size:2.25rem; font-weight:700; letter-spacing:-.02em; line-height:1; white-space:nowrap; }
   .score small { font-size:.875rem; font-weight:500; color:var(--ink-3); }
   details { border-top:1px solid var(--line); }
@@ -313,10 +362,10 @@ ${BASE_CSS}
   ul.checks { list-style:none; margin:0; padding:0; }
   ul.checks li { display:grid; grid-template-columns:20px 1fr auto; gap:12px; padding:14px 24px; border-top:1px solid var(--line); }
   ul.checks svg { width:20px; height:20px; margin-top:2px; } ul.checks svg path { stroke:#fff; }
-  ul.checks .ok svg circle { fill:var(--ok); } ul.checks .partial svg circle { fill:var(--warn); } ul.checks .missing svg circle { fill:var(--crit); }
+  ul.checks .ok svg circle { fill:var(--ok); } ul.checks .partial svg circle { fill:var(--warn); } ul.checks .missing svg circle { fill:var(--crit); } ul.checks .info svg circle { fill:var(--ink-3); }
   ul.checks .t { font-weight:600; }
   ul.checks .st { font-weight:500; font-size:.8125rem; margin-left:6px; }
-  ul.checks .ok .st { color:var(--ok); } ul.checks .partial .st { color:var(--warn); } ul.checks .missing .st { color:var(--crit); }
+  ul.checks .ok .st { color:var(--ok); } ul.checks .partial .st { color:var(--warn); } ul.checks .missing .st { color:var(--crit); } ul.checks .info .st { color:var(--ink-3); }
   ul.checks .d { color:var(--ink-2); font-size:.9375rem; margin-top:2px; overflow-wrap:anywhere; }
   ul.checks .side { text-align:right; font-size:.875rem; white-space:nowrap; }
   ul.checks .pts { font-variant-numeric:tabular-nums; color:var(--ink-3); display:block; }
@@ -493,6 +542,33 @@ ${BASE_CSS}
     return r.sitemap.found ? T.sitemapOk(r.sitemap.urls, r.sitemap.index) : T.sitemapNone;
   }
 
+  // Personal Agent Protocol: shown like the other checks, but outside the
+  // score, and a missing file reads as neutral, not as a gap.
+  function showAgents(a, chips, ul) {
+    var st = a.valid ? 'valid' : a.present ? 'invalid' : 'missing';
+    var look = st === 'valid' ? 'ok' : st === 'invalid' ? 'partial' : 'info';
+    var chip = el('li', look);
+    chip.appendChild(icon(look === 'info' ? 'partial' : look));
+    chip.appendChild(document.createTextNode(T.agentsName + ' \\u00B7 ' + T.agentsState[st]));
+    chips.appendChild(chip);
+
+    var li = el('li', look);
+    li.appendChild(icon(look === 'info' ? 'partial' : look));
+    var main = el('div');
+    var t = el('div', 't', T.agentsName); t.appendChild(el('span', 'st', T.agentsState[st])); main.appendChild(t);
+    var words = st === 'valid' ? T.agentsValid : st === 'missing' ? T.agentsMissing
+      : T.agentsInvalid((a.issues || []).map(function (k) { return T.agentsIssue[k] || k; }).join('; '));
+    main.appendChild(el('div', 'd', words));
+    li.appendChild(main);
+    var side = el('div', 'side');
+    side.appendChild(el('span', 'pts', T.notScored));
+    var link = el('a', null, T.spec + ' \\u2192');
+    link.href = CFG.spec; link.target = '_blank'; link.rel = 'noopener';
+    side.appendChild(link);
+    li.appendChild(side);
+    ul.appendChild(li);
+  }
+
   function showRead(r) {
     $('score').textContent = '';
     $('score').appendChild(document.createTextNode(String(r.points.total)));
@@ -520,6 +596,7 @@ ${BASE_CSS}
       li.appendChild(side);
       ul.appendChild(li);
     });
+    if (r.agents) showAgents(r.agents, chips, ul);
     $('read').hidden = false;
   }
 
