@@ -6,6 +6,10 @@
 //   schema    → Schema Templates (JSON-LD found on the home page)
 //   sitemap   → Sitemap Builder
 //
+// Plus one check outside the score: the Personal Agent Protocol file
+// (/.well-known/poppy.json, poppy.js), which a standard a week old cannot
+// fairly be marked down for.
+//
 // The robots.txt analysis is NOT reimplemented here: it is asked to the
 // ai-crawl-check Worker (service binding CRAWL, or its public URL as fallback),
 // so the score is the same number that tool shows. Everything else is a plain
@@ -14,6 +18,8 @@
 // It answers "can AI models read this site?". Whether they actually CITE it is
 // a different question, measured by GeoSuite's free analysis, which is where
 // the result page sends people.
+
+import { probePoppy } from './poppy.js';
 
 const UA = 'geosuite-open-check/1.0 (+https://tools.trygeosuite.it/check)';
 const FETCH_TIMEOUT_MS = 8000;
@@ -217,11 +223,12 @@ export async function scan(rawUrl, env) {
     return { error: 'invalid_url' };
   }
 
-  const [home, llmsRes, robots, crawlers] = await Promise.all([
+  const [home, llmsRes, robots, crawlers, agents] = await Promise.all([
     get(origin + '/'),
     get(origin + '/llms.txt'),
     get(origin + '/robots.txt'),
     crawlerVerdict(origin, env),
+    probePoppy(new URL(origin).host),
   ]);
 
   if (home.status === 0 && robots.status === 0) return { error: 'unreachable', origin };
@@ -238,6 +245,7 @@ export async function scan(rawUrl, env) {
     schema: home.status && home.status < 400 ? parseJsonLd(home.body) : { blocks: 0, invalid: 0, types: [], entity: false },
     llms: parseLlmsTxt(llmsRes),
     sitemap,
+    agents,
   };
   result.points = scoreOf(result);
   return result;

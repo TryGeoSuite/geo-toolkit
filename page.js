@@ -21,6 +21,7 @@ const GLYPHS = {
   crawlers: '<rect x="4" y="8" width="16" height="12" rx="2"/><path d="M12 4v4M9 13v1M15 13v1M2 14h2M20 14h2"/>',
   llms: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/>',
   schema: '<path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5a2 2 0 0 0 2 2h1M16 3h1a2 2 0 0 1 2 2v5a2 2 0 0 0 2 2 2 2 0 0 0-2 2v5a2 2 0 0 1-2 2h-1"/>',
+  agents: '<circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/>',
   sitemap: '<rect x="9" y="2" width="6" height="5" rx="1"/><rect x="2" y="17" width="6" height="5" rx="1"/><rect x="16" y="17" width="6" height="5" rx="1"/><path d="M12 7v5M5 17v-3h14v3"/>',
 };
 const glyph = (key) => `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${GLYPHS[key]}</svg>`;
@@ -56,12 +57,19 @@ const TOOLS = [
     gh: 'https://github.com/TryGeoSuite/sitemap-builder',
     cmd: 'npx @geosuite/sitemap-builder &lt;url&gt;',
   },
+  {
+    key: 'agents',
+    name: 'Poppy Check',
+    open: 'https://poppy-check.geosuite.workers.dev',
+    gh: 'https://github.com/TryGeoSuite/poppy-json',
+    cmd: 'npx @geosuite/poppy-json check &lt;url&gt;',
+  },
 ];
 
 const S = {
   en: {
     title: 'GeoSuite Open: free GEO tools',
-    desc: 'Free, open-source tools for Generative Engine Optimization (GEO): audit AI crawlers, generate llms.txt, build schema.org JSON-LD, and create sitemaps.',
+    desc: 'Free, open-source tools for Generative Engine Optimization (GEO): audit AI crawlers, generate llms.txt, build schema.org JSON-LD, create sitemaps and check the Personal Agent Protocol file (poppy.json).',
     check: 'AI Readiness Check',
     eyebrow: 'Free and open source',
     h1: 'Make your site easy for AI to read, and to recommend',
@@ -71,7 +79,7 @@ const S = {
     run: 'Check my site',
     facts: ['Free', 'No sign-up', 'Open source (MIT)'],
     stats: (t, m) => `<strong>${t}</strong> npm downloads, <strong>${m}</strong> last month`,
-    toolsHead: 'Four tools, one for each gap',
+    toolsHead: 'Five tools, one for each gap',
     toolsLead: 'Use them right here in the browser, or from your terminal: each one is also a zero-dependency CLI on npm.',
     open: 'Open the tool',
     copy: 'Copy',
@@ -86,11 +94,12 @@ const S = {
       'Turn any site’s <code>sitemap.xml</code> into an <code>llms.txt</code>: the curated index that tells AI models which pages matter.',
       'Copy-paste schema.org JSON-LD templates (Organization, Product, FAQPage, Article…) and validate your own structured data.',
       'Crawl a site and build a <code>sitemap.xml</code>: a quick capped version here, or a full crawl from the CLI.',
+      'Check and generate the <code>/.well-known/poppy.json</code> of the Personal Agent Protocol: the file people’s own AI agents read to find your business and sign in for them.',
     ],
   },
   it: {
     title: 'GeoSuite Open: strumenti GEO gratuiti',
-    desc: 'Strumenti gratuiti e open-source per la Generative Engine Optimization (GEO): controlla i crawler AI, genera llms.txt, crea JSON-LD schema.org e costruisci sitemap.',
+    desc: 'Strumenti gratuiti e open-source per la Generative Engine Optimization (GEO): controlla i crawler AI, genera llms.txt, crea JSON-LD schema.org, costruisci sitemap e controlla il file del Personal Agent Protocol (poppy.json).',
     check: 'AI Readiness Check',
     eyebrow: 'Gratis e open source',
     h1: 'Rendi il tuo sito facile da leggere, e da consigliare, per le AI',
@@ -100,7 +109,7 @@ const S = {
     run: 'Controlla il mio sito',
     facts: ['Gratis', 'Senza registrazione', 'Open source (MIT)'],
     stats: (t, m) => `<strong>${t}</strong> download da npm, <strong>${m}</strong> nell’ultimo mese`,
-    toolsHead: 'Quattro strumenti, uno per ogni lacuna',
+    toolsHead: 'Cinque strumenti, uno per ogni lacuna',
     toolsLead: 'Usali qui nel browser, o dal terminale: ognuno è anche una CLI su npm, senza dipendenze.',
     open: 'Apri lo strumento',
     copy: 'Copia',
@@ -115,6 +124,7 @@ const S = {
       'Trasforma il <code>sitemap.xml</code> di qualsiasi sito in un <code>llms.txt</code>: l’indice curato che dice ai modelli AI quali pagine contano.',
       'Template JSON-LD schema.org pronti da copiare (Organization, Product, FAQPage, Article…) e valida i tuoi dati strutturati.',
       'Esplora un sito e costruisci un <code>sitemap.xml</code>: qui una versione rapida e limitata, o un crawl completo da CLI.',
+      'Controlla e genera il <code>/.well-known/poppy.json</code> del Personal Agent Protocol: il file che gli agenti AI personali leggono per trovare la tua azienda ed entrare per conto dei clienti.',
     ],
   },
 };
@@ -127,7 +137,7 @@ function fmt(n) {
 
 const stripTags = (s) => s.replace(/<[^>]+>/g, '');
 
-// schema.org JSON-LD: Organization + an ItemList of the four SoftwareApplications.
+// schema.org JSON-LD: Organization + an ItemList of the SoftwareApplications.
 function jsonLd(t) {
   return JSON.stringify({
     '@context': 'https://schema.org',
