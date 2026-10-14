@@ -182,7 +182,8 @@ export function renderPage(lang, stats) {
 <link rel="alternate" hreflang="en" href="${BASE}/en">
 <link rel="alternate" hreflang="it" href="${BASE}/it">
 <link rel="alternate" hreflang="x-default" href="${BASE}/">
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="GeoSuite Open">
 <meta property="og:title" content="${t.title}">

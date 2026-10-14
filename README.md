@@ -63,7 +63,7 @@ that deploys to **tools.trygeosuite.it**. It does a bit more than serve static H
   LLM_API_KEY`, or `.dev.vars` locally). Without the key the preview hides itself
   and the check keeps working.
 - **Shareable:** Open Graph + Twitter card meta with a bundled 1200×630 `/og.png`
-  (wrangler `Data` rule), plus an inline `/favicon.svg`.
+  (wrangler `Data` rule), plus GeoSuite's favicon (`/favicon.png`, `/apple-touch-icon.png`).
 
 ```bash
 npx wrangler deploy   # to the GeoSuite Cloudflare account

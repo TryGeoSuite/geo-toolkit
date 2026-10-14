@@ -19,6 +19,8 @@ on:
       - 'preview.js'
       - 'theme.js'
       - 'logos/**'
+      - 'favicon.png'
+      - 'apple-touch-icon.png'
       - 'wrangler.toml'
       - '.github/workflows/deploy.yml'
   workflow_dispatch: {}
