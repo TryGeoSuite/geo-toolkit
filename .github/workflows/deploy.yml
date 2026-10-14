@@ -17,6 +17,7 @@ on:
       - 'check.js'
       - 'check-page.js'
       - 'preview.js'
+      - 'theme.js'
       - 'logos/**'
       - 'wrangler.toml'
       - '.github/workflows/deploy.yml'

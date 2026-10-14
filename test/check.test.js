@@ -87,6 +87,21 @@ test('the check page ships a client script that parses, in both languages', asyn
   }
 });
 
+test('the hub ships a script that parses, in both languages, with and without stats', async () => {
+  const { renderPage } = await import('../page.js');
+  for (const lang of ['en', 'it']) {
+    for (const stats of [null, { total: 12345, monthly: 678 }]) {
+      const html = renderPage(lang, stats);
+      const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+      assert.equal(scripts.length, 1, lang);
+      assert.doesNotThrow(() => new Function(scripts[0]), lang);
+      assert.ok(!/\u2014/.test(html), `${lang}: no em dash in the copy`);
+      assert.ok(html.includes(`action="/${lang}/check"`), `${lang}: the form leads to the check`);
+      assert.equal(html.includes('12.3k'), !!stats, `${lang}: downloads only when known`);
+    }
+  }
+});
+
 test('the shared ?url= is escaped into the input, not injected', async () => {
   const { renderCheckPage } = await import('../check-page.js');
   const html = renderCheckPage('en', '"><script>alert(1)</script>');
