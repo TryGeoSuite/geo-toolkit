@@ -255,7 +255,8 @@ export function renderCheckPage(lang, initialUrl, initialQuestion = '') {
 <link rel="alternate" hreflang="en" href="${BASE}/en/check">
 <link rel="alternate" hreflang="it" href="${BASE}/it/check">
 <link rel="alternate" hreflang="x-default" href="${BASE}/check">
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="GeoSuite">
 <meta property="og:title" content="${esc(t.title)}">

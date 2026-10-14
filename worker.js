@@ -11,7 +11,7 @@
 //   GET /api/scan?url → the whole toolkit run against one site, as JSON
 //   GET /api/preview?url → one real question to a model: is the site named? (preview.js)
 // Asset routes:
-//   GET /og.png  /favicon.svg  /robots.txt  /llms.txt  /sitemap.xml
+//   GET /og.png  /favicon.png  /apple-touch-icon.png  /robots.txt  /llms.txt  /sitemap.xml
 //
 // The only dynamic bit is one live figure in the header: the combined download
 // count of the four hosted tools (all-time + last-month), as social proof. The
@@ -27,6 +27,10 @@ import { apiPreview, PreviewBudget } from './preview.js';
 // Durable Object classes must be exported by the main module.
 export { PreviewBudget };
 import OG_PNG from './og.png'; // bundled as ArrayBuffer via the wrangler "Data" rule
+// GeoSuite's own favicon, resized from geo/frontend/public/favicon.png: the same
+// mark as trygeosuite.it, never redrawn.
+import FAVICON_PNG from './favicon.png';
+import TOUCH_ICON_PNG from './apple-touch-icon.png';
 import LOGO_CHATGPT from './logos/chatgpt.svg';
 import LOGO_GEMINI from './logos/gemini.svg';
 import LOGO_PERPLEXITY from './logos/perplexity.svg';
@@ -44,7 +48,6 @@ const PKGS = [
 ];
 
 // A geo "location pin" mark in the GeoSuite accent — inline SVG, no binary.
-const FAVICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#0b0f17"/><path d="M32 13c-8.3 0-15 6.4-15 14.6C17 38 32 51 32 51s15-13 15-23.4C47 19.4 40.3 13 32 13z" fill="#5b8def"/><circle cx="32" cy="27.5" r="5.6" fill="#0b0f17"/></svg>`;
 
 // We practice what we preach: every crawler, AI included, is welcome.
 const ROBOTS = `# GeoSuite Open — a GEO toolkit that's maximally legible to AI crawlers.
@@ -206,7 +209,14 @@ export default {
         headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=86400' },
       });
     }
-    if (path === '/favicon.svg') return text(FAVICON, 'image/svg+xml; charset=utf-8', 86400);
+    // /favicon.ico is what browsers ask for on their own; the old /favicon.svg
+    // may still sit in their caches and in shared links.
+    const icon = { '/favicon.png': FAVICON_PNG, '/favicon.ico': FAVICON_PNG, '/favicon.svg': FAVICON_PNG, '/apple-touch-icon.png': TOUCH_ICON_PNG }[path];
+    if (icon) {
+      return new Response(icon, {
+        headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=86400' },
+      });
+    }
     const logo = path.match(/^\/logos\/(chatgpt|gemini|perplexity)\.svg$/);
     if (logo) return text(ENGINE_LOGOS[logo[1]], 'image/svg+xml; charset=utf-8', 86400);
     if (path === '/robots.txt') return text(ROBOTS, 'text/plain; charset=utf-8', 86400);
