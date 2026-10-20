@@ -4,7 +4,7 @@
 //
 // It wears the same clothes as the AI Readiness Check (theme.js), and its form
 // is the way in to it: the hero asks for the site, /check answers with what an
-// AI recommends and what to fix, and the four tools below are those fixes.
+// AI recommends and what to fix, and the tools below are those fixes.
 //
 // The page also dogfoods the toolkit it advertises: JSON-LD structured data here,
 // plus /robots.txt, /llms.txt, /sitemap.xml and an OG image served by the worker.
