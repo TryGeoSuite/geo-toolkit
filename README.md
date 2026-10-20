@@ -38,12 +38,12 @@ that deploys to **tools.trygeosuite.it**. It does a bit more than serve static H
 
 - **Bilingual (en/it):** `/` is content-negotiated on `Accept-Language`; `/en` and
   `/it` are explicit, with an EN·IT switch, `hreflang`/`canonical` and `x-default → /`.
-- **Live social proof:** one header figure shows the four tools' combined npm
+- **Live social proof:** one header figure shows the five tools' combined npm
   downloads (all-time + last-month), fetched server-side with a last-good Cache
   fallback so a rate-limit blip never blanks it.
 - **Dogfoods GEO:** serves `/robots.txt` (welcomes AI crawlers → scores 100 on our
   own AI Crawl Check), `/llms.txt`, `/sitemap.xml`, and JSON-LD (Organization +
-  an ItemList of the four `SoftwareApplication`s) in the page head.
+  an ItemList of the five `SoftwareApplication`s) in the page head.
 - **AI Readiness Check (`/check`, `/en/check`, `/it/check`):** runs the toolkit
   against one site through `GET /api/scan?url=` ([`check.js`](check.js)). The
   `/.well-known/poppy.json` is checked like an agent would (draft 0.1 of the

@@ -14,8 +14,8 @@
 //   GET /og.png  /favicon.png  /apple-touch-icon.png  /robots.txt  /llms.txt  /sitemap.xml
 //
 // The only dynamic bit is one live figure in the header: the combined download
-// count of the four hosted tools (all-time + last-month), as social proof. The
-// four are npm-only; npm's downloads API is keyless, exact, and — unlike PyPI's
+// count of the five hosted tools (all-time + last-month), as social proof. The
+// five are npm-only; npm's downloads API is keyless, exact, and — unlike PyPI's
 // pypistats — doesn't rate-limit, so we fetch it directly and keep a last-good
 // copy in the Cache API so a blip never blanks the number.
 
@@ -45,6 +45,7 @@ const PKGS = [
   '@geosuite/llms-txt-generator',
   '@geosuite/schema-templates',
   '@geosuite/sitemap-builder',
+  '@geosuite/poppy-json',
 ];
 
 // A geo "location pin" mark in the GeoSuite accent — inline SVG, no binary.
@@ -102,6 +103,10 @@ const SITEMAP = `<?xml version="1.0" encoding="UTF-8"?>
 async function npmCount(pkg, range) {
   try {
     const r = await fetch(`https://api.npmjs.org/downloads/point/${range}/${pkg}`);
+    // A package published in the last day or two has no stats yet and answers
+    // 404 "not found": that is zero downloads, not a failure, or one new tool
+    // would blank the combined figure.
+    if (r.status === 404) return 0;
     if (!r.ok) return null;
     const j = await r.json();
     return typeof j.downloads === 'number' ? j.downloads : null;
