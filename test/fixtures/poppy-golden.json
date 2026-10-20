@@ -1,0 +1,1764 @@
+{
+  "_about": "Golden cases for the poppy.json check of @geosuite/poppy-json (src/check.js) and GeoSuite's audit (backend/services/ingestion/personal_agent_protocol.py). Both repos run every case; GeoSuite keeps a byte-identical copy in backend/tests/fixtures/poppy_json_golden.json. Field names are the audit's (snake_case); the JS test maps them. A route answers with {status (default 200), json | body | oversize (a JSON body over 256 KB), location} or raises ('fetch' or 'timeout'); any other URL answers 404.",
+  "issue_codes": [
+    "not_an_object",
+    "missing_protocol_version",
+    "unsupported_major_version",
+    "missing_organization",
+    "domain_mismatch",
+    "invalid_agent_protocol",
+    "invalid_api_entry",
+    "invalid_browser_session_endpoint",
+    "no_channels",
+    "missing_auth_issuer",
+    "not_https",
+    "issuer_metadata_unreachable",
+    "issuer_metadata_invalid",
+    "issuer_mismatch",
+    "domain_not_in_issuer",
+    "missing_token_endpoint",
+    "missing_revocation_endpoint",
+    "missing_authorization_endpoint",
+    "missing_device_authorization_endpoint"
+  ],
+  "validate_cases": [
+    {
+      "name": "a complete document is valid",
+      "document": {
+        "protocol_version": "0.1",
+        "organization": {
+          "name": "Acme",
+          "domain": "acme.it"
+        },
+        "auth": {
+          "issuer": "https://auth.acme.it",
+          "direct": {
+            "scopes": [
+              "poppy:read",
+              "poppy:write"
+            ]
+          }
+        },
+        "agent": {
+          "protocols": [
+            {
+              "type": "poppy",
+              "endpoint": "https://acme.it/poppy"
+            }
+          ]
+        },
+        "apis": [
+          {
+            "type": "mcp",
+            "url": "https://acme.it/mcp",
+            "description": "Ordini"
+          }
+        ]
+      },
+      "host": "www.acme.it",
+      "expected": {
+        "valid": true,
+        "issues": [],
+        "protocol_version": "0.1",
+        "organization_domain": "acme.it",
+        "issuer": "https://auth.acme.it",
+        "sign_in_types": [
+          "direct"
+        ],
+        "api_types": [
+          "mcp"
+        ],
+        "has_conversation": true,
+        "has_browser_session": false
+      }
+    },
+    {
+      "name": "the domain must match the requested host",
+      "document": {
+        "protocol_version": "0.1",
+        "organization": {
+          "name": "Acme",
+          "domain": "acme.it"
+        },
+        "auth": {
+          "issuer": "https://auth.acme.it",
+          "direct": {
+            "scopes": [
+              "poppy:read",
+              "poppy:write"
+            ]
+          }
+        },
+        "agent": {
+          "protocols": [
+            {
+              "type": "poppy",
+              "endpoint": "https://acme.it/poppy"
+            }
+          ]
+        },
+        "apis": [
+          {
+            "type": "mcp",
+            "url": "https://acme.it/mcp",
+            "description": "Ordini"
+          }
+        ]
+      },
+      "host": "other.it",
+      "expected": {
+        "valid": false,
+        "issues": [
+          "domain_mismatch"
+        ],
+        "protocol_version": "0.1",
+        "organization_domain": "acme.it",
+        "issuer": "https://auth.acme.it",
+        "sign_in_types": [
+          "direct"
+        ],
+        "api_types": [
+          "mcp"
+        ],
+        "has_conversation": true,
+        "has_browser_session": false
+      }
+    },
+    {
+      "name": "a new major version is not usable",
+      "document": {
+        "protocol_version": "1.0",
+        "organization": {
+          "name": "Acme",
+          "domain": "acme.it"
+        },
+        "auth": {
+          "issuer": "https://auth.acme.it",
+          "direct": {
+            "scopes": [
+              "poppy:read",
+              "poppy:write"
+            ]
+          }
+        },
+        "agent": {
+          "protocols": [
+            {
+              "type": "poppy",
+              "endpoint": "https://acme.it/poppy"
+            }
+          ]
+        },
+        "apis": [
+          {
+            "type": "mcp",
+            "url": "https://acme.it/mcp",
+            "description": "Ordini"
+          }
+        ]
+      },
+      "host": "acme.it",
+      "expected": {
+        "valid": false,
+        "issues": [
+          "unsupported_major_version"
+        ],
+        "protocol_version": "1.0",
+        "organization_domain": "acme.it",
+        "issuer": "https://auth.acme.it",
+        "sign_in_types": [
+          "direct"
+        ],
+        "api_types": [
+          "mcp"
+        ],
+        "has_conversation": true,
+        "has_browser_session": false
+      }
+    },
+    {
+      "name": "a version without a dot is missing",
+      "document": {
+        "protocol_version": "1",
+        "organization": {
+          "name": "Acme",
+          "domain": "acme.it"
+        },
+        "auth": {
+          "issuer": "https://auth.acme.it",
+          "direct": {
+            "scopes": [
+              "poppy:read",
+              "poppy:write"
+            ]
+          }
+        },
+        "agent": {
+          "protocols": [
+            {
+              "type": "poppy",
+              "endpoint": "https://acme.it/poppy"
+            }
+          ]
+        },
+        "apis": [
+          {
+            "type": "mcp",
+            "url": "https://acme.it/mcp",
+            "description": "Ordini"
+          }
+        ]
+      },
+      "host": "acme.it",
+      "expected": {
+        "valid": false,
+        "issues": [
+          "missing_protocol_version"
+        ],
+        "protocol_version": "1",
+        "organization_domain": "acme.it",
+        "issuer": "https://auth.acme.it",
+        "sign_in_types": [
+          "direct"
+        ],
+        "api_types": [
+          "mcp"
+        ],
+        "has_conversation": true,
+        "has_browser_session": false
+      }
+    },
+    {
+      "name": "a document without channels is invalid",
+      "document": {
+        "protocol_version": "0.1",
+        "organization": {
+          "name": "Acme",
+          "domain": "acme.it"
+        },
+        "auth": {
+          "issuer": "https://auth.acme.it",
+          "direct": {
+            "scopes": [
+              "poppy:read",
+              "poppy:write"
+            ]
+          }
+        }
+      },
+      "host": "acme.it",
+      "expected": {
+        "valid": false,
+        "issues": [
+          "no_channels"
+        ],
+        "protocol_version": "0.1",
+        "organization_domain": "acme.it",
+        "issuer": "https://auth.acme.it",
+        "sign_in_types": [
+          "direct"
+        ],
+        "api_types": [],
+        "has_conversation": false,
+        "has_browser_session": false
+      }
+    },
+    {
+      "name": "channels need an https issuer",
+      "document": {
+        "protocol_version": "0.1",
+        "organization": {
+          "name": "Acme",
+          "domain": "acme.it"
+        },
+        "auth": {
+          "issuer": "http://auth.acme.it"
+        },
+        "agent": {
+          "protocols": [
+            {
+              "type": "poppy",
+              "endpoint": "https://acme.it/poppy"
+            }
+          ]
+        },
+        "apis": [
+          {
+            "type": "mcp",
+            "url": "https://acme.it/mcp",
+            "description": "Ordini"
+          }
+        ]
+      },
+      "host": "acme.it",
+      "expected": {
+        "valid": false,
+        "issues": [
+          "missing_auth_issuer"
+        ],
+        "protocol_version": "0.1",
+        "organization_domain": "acme.it",
+        "issuer": null,
+        "sign_in_types": [],
+        "api_types": [
+          "mcp"
+        ],
+        "has_conversation": true,
+        "has_browser_session": false
+      }
+    },
+    {
+      "name": "an API without a description is invalid",
+      "document": {
+        "protocol_version": "0.1",
+        "organization": {
+          "name": "Acme",
+          "domain": "acme.it"
+        },
+        "auth": {
+          "issuer": "https://auth.acme.it",
+          "direct": {
+            "scopes": [
+              "poppy:read",
+              "poppy:write"
+            ]
+          }
+        },
+        "agent": {
+          "protocols": [
+            {
+              "type": "poppy",
+              "endpoint": "https://acme.it/poppy"
+            }
+          ]
+        },
+        "apis": [
+          {
+            "type": "openapi",
+            "url": "https://acme.it/openapi.json"
+          }
+        ]
+      },
+      "host": "acme.it",
+      "expected": {
+        "valid": false,
+        "issues": [
+          "invalid_api_entry"
+        ],
+        "protocol_version": "0.1",
+        "organization_domain": "acme.it",
+        "issuer": "https://auth.acme.it",
+        "sign_in_types": [
+          "direct"
+        ],
+        "api_types": [],
+        "has_conversation": true,
+        "has_browser_session": false
+      }
+    },
+    {
+      "name": "a JSON array is not a document",
+      "document": [],
+      "host": "acme.it",
+      "expected": {
+        "valid": false,
+        "issues": [
+          "not_an_object"
+        ],
+        "protocol_version": null,
+        "organization_domain": null,
+        "issuer": null,
+        "sign_in_types": [],
+        "api_types": [],
+        "has_conversation": false,
+        "has_browser_session": false
+      }
+    },
+    {
+      "name": "an empty list is not an organization name",
+      "document": {
+        "protocol_version": "0.1",
+        "organization": {
+          "name": [],
+          "domain": "acme.it"
+        },
+        "auth": {
+          "issuer": "https://auth.acme.it",
+          "direct": {
+            "scopes": [
+              "poppy:read",
+              "poppy:write"
+            ]
+          }
+        },
+        "agent": {
+          "protocols": [
+            {
+              "type": "poppy",
+              "endpoint": "https://acme.it/poppy"
+            }
+          ]
+        },
+        "apis": [
+          {
+            "type": "mcp",
+            "url": "https://acme.it/mcp",
+            "description": "Ordini"
+          }
+        ]
+      },
+      "host": "acme.it",
+      "expected": {
+        "valid": false,
+        "issues": [
+          "missing_organization"
+        ],
+        "protocol_version": "0.1",
+        "organization_domain": null,
+        "issuer": "https://auth.acme.it",
+        "sign_in_types": [
+          "direct"
+        ],
+        "api_types": [
+          "mcp"
+        ],
+        "has_conversation": true,
+        "has_browser_session": false
+      }
+    },
+    {
+      "name": "an empty object is not an organization name",
+      "document": {
+        "protocol_version": "0.1",
+        "organization": {
+          "name": {},
+          "domain": "acme.it"
+        },
+        "auth": {
+          "issuer": "https://auth.acme.it",
+          "direct": {
+            "scopes": [
+              "poppy:read",
+              "poppy:write"
+            ]
+          }
+        },
+        "agent": {
+          "protocols": [
+            {
+              "type": "poppy",
+              "endpoint": "https://acme.it/poppy"
+            }
+          ]
+        },
+        "apis": [
+          {
+            "type": "mcp",
+            "url": "https://acme.it/mcp",
+            "description": "Ordini"
+          }
+        ]
+      },
+      "host": "acme.it",
+      "expected": {
+        "valid": false,
+        "issues": [
+          "missing_organization"
+        ],
+        "protocol_version": "0.1",
+        "organization_domain": null,
+        "issuer": "https://auth.acme.it",
+        "sign_in_types": [
+          "direct"
+        ],
+        "api_types": [
+          "mcp"
+        ],
+        "has_conversation": true,
+        "has_browser_session": false
+      }
+    },
+    {
+      "name": "an API type that is not a string is not counted",
+      "document": {
+        "protocol_version": "0.1",
+        "organization": {
+          "name": "Acme",
+          "domain": "acme.it"
+        },
+        "auth": {
+          "issuer": "https://auth.acme.it",
+          "direct": {
+            "scopes": [
+              "poppy:read",
+              "poppy:write"
+            ]
+          }
+        },
+        "agent": {
+          "protocols": [
+            {
+              "type": "poppy",
+              "endpoint": "https://acme.it/poppy"
+            }
+          ]
+        },
+        "apis": [
+          {
+            "type": [
+              "mcp"
+            ],
+            "url": "https://acme.it/mcp",
+            "description": "Ordini"
+          }
+        ]
+      },
+      "host": "acme.it",
+      "expected": {
+        "valid": true,
+        "issues": [],
+        "protocol_version": "0.1",
+        "organization_domain": "acme.it",
+        "issuer": "https://auth.acme.it",
+        "sign_in_types": [
+          "direct"
+        ],
+        "api_types": [],
+        "has_conversation": true,
+        "has_browser_session": false
+      }
+    },
+    {
+      "name": "unknown API types are skipped, not flagged",
+      "document": {
+        "protocol_version": "0.1",
+        "organization": {
+          "name": "Acme",
+          "domain": "acme.it"
+        },
+        "auth": {
+          "issuer": "https://auth.acme.it",
+          "direct": {
+            "scopes": [
+              "poppy:read",
+              "poppy:write"
+            ]
+          }
+        },
+        "agent": {
+          "protocols": [
+            {
+              "type": "poppy",
+              "endpoint": "https://acme.it/poppy"
+            }
+          ]
+        },
+        "apis": [
+          {
+            "type": "graphql",
+            "url": "https://acme.it/gql",
+            "description": "x"
+          }
+        ]
+      },
+      "host": "acme.it",
+      "expected": {
+        "valid": true,
+        "issues": [],
+        "protocol_version": "0.1",
+        "organization_domain": "acme.it",
+        "issuer": "https://auth.acme.it",
+        "sign_in_types": [
+          "direct"
+        ],
+        "api_types": [],
+        "has_conversation": true,
+        "has_browser_session": false
+      }
+    },
+    {
+      "name": "a space in the endpoint host is not a URL",
+      "document": {
+        "protocol_version": "0.1",
+        "organization": {
+          "name": "Acme",
+          "domain": "acme.it"
+        },
+        "auth": {
+          "issuer": "https://auth.acme.it",
+          "direct": {
+            "scopes": [
+              "poppy:read",
+              "poppy:write"
+            ]
+          }
+        },
+        "agent": {
+          "protocols": [
+            {
+              "type": "poppy",
+              "endpoint": "https://acme .it/poppy"
+            }
+          ]
+        },
+        "apis": [
+          {
+            "type": "mcp",
+            "url": "https://acme.it/mcp",
+            "description": "Ordini"
+          }
+        ]
+      },
+      "host": "acme.it",
+      "expected": {
+        "valid": false,
+        "issues": [
+          "invalid_agent_protocol"
+        ],
+        "protocol_version": "0.1",
+        "organization_domain": "acme.it",
+        "issuer": "https://auth.acme.it",
+        "sign_in_types": [
+          "direct"
+        ],
+        "api_types": [
+          "mcp"
+        ],
+        "has_conversation": false,
+        "has_browser_session": false
+      }
+    },
+    {
+      "name": "a broken IPv6 endpoint is not a URL",
+      "document": {
+        "protocol_version": "0.1",
+        "organization": {
+          "name": "Acme",
+          "domain": "acme.it"
+        },
+        "auth": {
+          "issuer": "https://auth.acme.it",
+          "direct": {
+            "scopes": [
+              "poppy:read",
+              "poppy:write"
+            ]
+          }
+        },
+        "agent": {
+          "protocols": [
+            {
+              "type": "poppy",
+              "endpoint": "https://[bad/poppy"
+            }
+          ]
+        },
+        "apis": [
+          {
+            "type": "mcp",
+            "url": "https://acme.it/mcp",
+            "description": "Ordini"
+          }
+        ]
+      },
+      "host": "acme.it",
+      "expected": {
+        "valid": false,
+        "issues": [
+          "invalid_agent_protocol"
+        ],
+        "protocol_version": "0.1",
+        "organization_domain": "acme.it",
+        "issuer": "https://auth.acme.it",
+        "sign_in_types": [
+          "direct"
+        ],
+        "api_types": [
+          "mcp"
+        ],
+        "has_conversation": false,
+        "has_browser_session": false
+      }
+    },
+    {
+      "name": "a conversation endpoint on http is flagged",
+      "document": {
+        "protocol_version": "0.1",
+        "organization": {
+          "name": "Acme",
+          "domain": "acme.it"
+        },
+        "auth": {
+          "issuer": "https://auth.acme.it",
+          "direct": {
+            "scopes": [
+              "poppy:read",
+              "poppy:write"
+            ]
+          }
+        },
+        "agent": {
+          "protocols": [
+            {
+              "type": "poppy",
+              "endpoint": "http://acme.it/p"
+            }
+          ]
+        },
+        "apis": [
+          {
+            "type": "mcp",
+            "url": "https://acme.it/mcp",
+            "description": "Ordini"
+          }
+        ]
+      },
+      "host": "acme.it",
+      "expected": {
+        "valid": false,
+        "issues": [
+          "invalid_agent_protocol"
+        ],
+        "protocol_version": "0.1",
+        "organization_domain": "acme.it",
+        "issuer": "https://auth.acme.it",
+        "sign_in_types": [
+          "direct"
+        ],
+        "api_types": [
+          "mcp"
+        ],
+        "has_conversation": false,
+        "has_browser_session": false
+      }
+    },
+    {
+      "name": "a browser session endpoint on http is flagged",
+      "document": {
+        "protocol_version": "0.1",
+        "organization": {
+          "name": "Acme",
+          "domain": "acme.it"
+        },
+        "auth": {
+          "issuer": "https://auth.acme.it",
+          "direct": {
+            "scopes": [
+              "poppy:read",
+              "poppy:write"
+            ]
+          }
+        },
+        "agent": {
+          "protocols": [
+            {
+              "type": "poppy",
+              "endpoint": "https://acme.it/poppy"
+            }
+          ]
+        },
+        "apis": [
+          {
+            "type": "mcp",
+            "url": "https://acme.it/mcp",
+            "description": "Ordini"
+          }
+        ],
+        "web": {
+          "browser_session_endpoint": "http://acme.it/b"
+        }
+      },
+      "host": "acme.it",
+      "expected": {
+        "valid": false,
+        "issues": [
+          "invalid_browser_session_endpoint"
+        ],
+        "protocol_version": "0.1",
+        "organization_domain": "acme.it",
+        "issuer": "https://auth.acme.it",
+        "sign_in_types": [
+          "direct"
+        ],
+        "api_types": [
+          "mcp"
+        ],
+        "has_conversation": true,
+        "has_browser_session": false
+      }
+    },
+    {
+      "name": "a browser session alone is a channel",
+      "document": {
+        "protocol_version": "0.1",
+        "organization": {
+          "name": "Acme",
+          "domain": "acme.it"
+        },
+        "auth": {
+          "issuer": "https://auth.acme.it",
+          "direct": {
+            "scopes": [
+              "poppy:read",
+              "poppy:write"
+            ]
+          }
+        },
+        "web": {
+          "browser_session_endpoint": "https://acme.it/b"
+        }
+      },
+      "host": "acme.it",
+      "expected": {
+        "valid": true,
+        "issues": [],
+        "protocol_version": "0.1",
+        "organization_domain": "acme.it",
+        "issuer": "https://auth.acme.it",
+        "sign_in_types": [
+          "direct"
+        ],
+        "api_types": [],
+        "has_conversation": false,
+        "has_browser_session": true
+      }
+    },
+    {
+      "name": "an empty web block needs no issuer",
+      "document": {
+        "protocol_version": "0.1",
+        "organization": {
+          "name": "Acme",
+          "domain": "acme.it"
+        },
+        "web": {}
+      },
+      "host": "acme.it",
+      "expected": {
+        "valid": true,
+        "issues": [],
+        "protocol_version": "0.1",
+        "organization_domain": "acme.it",
+        "issuer": null,
+        "sign_in_types": [],
+        "api_types": [],
+        "has_conversation": false,
+        "has_browser_session": false
+      }
+    },
+    {
+      "name": "trailing dots and www do not change the host",
+      "document": {
+        "protocol_version": "0.1",
+        "organization": {
+          "name": "Acme",
+          "domain": "acme.it"
+        },
+        "auth": {
+          "issuer": "https://auth.acme.it",
+          "direct": {
+            "scopes": [
+              "poppy:read",
+              "poppy:write"
+            ]
+          }
+        },
+        "agent": {
+          "protocols": [
+            {
+              "type": "poppy",
+              "endpoint": "https://acme.it/poppy"
+            }
+          ]
+        },
+        "apis": [
+          {
+            "type": "mcp",
+            "url": "https://acme.it/mcp",
+            "description": "Ordini"
+          }
+        ]
+      },
+      "host": "www.acme.it..",
+      "expected": {
+        "valid": true,
+        "issues": [],
+        "protocol_version": "0.1",
+        "organization_domain": "acme.it",
+        "issuer": "https://auth.acme.it",
+        "sign_in_types": [
+          "direct"
+        ],
+        "api_types": [
+          "mcp"
+        ],
+        "has_conversation": true,
+        "has_browser_session": false
+      }
+    },
+    {
+      "name": "every sign-in type is reported, in the spec order",
+      "document": {
+        "protocol_version": "0.1",
+        "organization": {
+          "name": "Acme",
+          "domain": "acme.it"
+        },
+        "auth": {
+          "issuer": "https://auth.acme.it",
+          "mediated": {
+            "endpoint": "https://auth.acme.it/in"
+          },
+          "device": {},
+          "direct": {}
+        },
+        "agent": {
+          "protocols": [
+            {
+              "type": "poppy",
+              "endpoint": "https://acme.it/poppy"
+            }
+          ]
+        },
+        "apis": [
+          {
+            "type": "mcp",
+            "url": "https://acme.it/mcp",
+            "description": "Ordini"
+          }
+        ]
+      },
+      "host": "acme.it",
+      "expected": {
+        "valid": true,
+        "issues": [],
+        "protocol_version": "0.1",
+        "organization_domain": "acme.it",
+        "issuer": "https://auth.acme.it",
+        "sign_in_types": [
+          "direct",
+          "device",
+          "mediated"
+        ],
+        "api_types": [
+          "mcp"
+        ],
+        "has_conversation": true,
+        "has_browser_session": false
+      }
+    }
+  ],
+  "metadata_cases": [
+    {
+      "name": "matching metadata have no issues",
+      "metadata": {
+        "issuer": "https://auth.acme.it",
+        "poppy_domains": [
+          "acme.it"
+        ],
+        "token_endpoint": "https://auth.acme.it/token",
+        "revocation_endpoint": "https://auth.acme.it/revoke",
+        "authorization_endpoint": "https://auth.acme.it/authorize",
+        "device_authorization_endpoint": "https://auth.acme.it/device"
+      },
+      "issuer": "https://auth.acme.it",
+      "domain": "www.acme.it",
+      "expected": []
+    },
+    {
+      "name": "metadata must name the issuer and list the domain",
+      "metadata": {
+        "issuer": "https://x.it",
+        "poppy_domains": [],
+        "token_endpoint": "https://auth.acme.it/token",
+        "revocation_endpoint": "https://auth.acme.it/revoke",
+        "authorization_endpoint": "https://auth.acme.it/authorize",
+        "device_authorization_endpoint": "https://auth.acme.it/device"
+      },
+      "issuer": "https://auth.acme.it",
+      "domain": "acme.it",
+      "expected": [
+        "issuer_mismatch",
+        "domain_not_in_issuer"
+      ]
+    },
+    {
+      "name": "a www entry in poppy_domains counts",
+      "metadata": {
+        "issuer": "https://auth.acme.it",
+        "poppy_domains": [
+          "WWW.acme.it"
+        ],
+        "token_endpoint": "https://auth.acme.it/token",
+        "revocation_endpoint": "https://auth.acme.it/revoke",
+        "authorization_endpoint": "https://auth.acme.it/authorize",
+        "device_authorization_endpoint": "https://auth.acme.it/device"
+      },
+      "issuer": "https://auth.acme.it",
+      "domain": "acme.it",
+      "expected": []
+    },
+    {
+      "name": "poppy_domains must be a list",
+      "metadata": {
+        "issuer": "https://auth.acme.it",
+        "poppy_domains": "acme.it",
+        "token_endpoint": "https://auth.acme.it/token",
+        "revocation_endpoint": "https://auth.acme.it/revoke",
+        "authorization_endpoint": "https://auth.acme.it/authorize",
+        "device_authorization_endpoint": "https://auth.acme.it/device"
+      },
+      "issuer": "https://auth.acme.it",
+      "domain": "acme.it",
+      "expected": [
+        "domain_not_in_issuer"
+      ]
+    },
+    {
+      "name": "metadata must be an object",
+      "metadata": null,
+      "issuer": "https://auth.acme.it",
+      "domain": "acme.it",
+      "expected": [
+        "issuer_metadata_invalid"
+      ]
+    },
+    {
+      "name": "a string is not metadata",
+      "metadata": "nope",
+      "issuer": "https://auth.acme.it",
+      "domain": "acme.it",
+      "expected": [
+        "issuer_metadata_invalid"
+      ]
+    },
+    {
+      "name": "metadata need https token and revocation endpoints",
+      "metadata": {
+        "issuer": "https://auth.acme.it",
+        "poppy_domains": [
+          "acme.it"
+        ]
+      },
+      "issuer": "https://auth.acme.it",
+      "domain": "acme.it",
+      "sign_in_types": [],
+      "expected": [
+        "missing_token_endpoint",
+        "missing_revocation_endpoint"
+      ]
+    },
+    {
+      "name": "an http token endpoint does not count",
+      "metadata": {
+        "issuer": "https://auth.acme.it",
+        "poppy_domains": [
+          "acme.it"
+        ],
+        "token_endpoint": "http://auth.acme.it/token",
+        "revocation_endpoint": "https://auth.acme.it/revoke"
+      },
+      "issuer": "https://auth.acme.it",
+      "domain": "acme.it",
+      "sign_in_types": [],
+      "expected": [
+        "missing_token_endpoint"
+      ]
+    },
+    {
+      "name": "direct sign-in needs an authorization endpoint",
+      "metadata": {
+        "issuer": "https://auth.acme.it",
+        "poppy_domains": [
+          "acme.it"
+        ],
+        "token_endpoint": "https://auth.acme.it/token",
+        "revocation_endpoint": "https://auth.acme.it/revoke"
+      },
+      "issuer": "https://auth.acme.it",
+      "domain": "acme.it",
+      "sign_in_types": [
+        "direct"
+      ],
+      "expected": [
+        "missing_authorization_endpoint"
+      ]
+    },
+    {
+      "name": "device sign-in needs a device authorization endpoint",
+      "metadata": {
+        "issuer": "https://auth.acme.it",
+        "poppy_domains": [
+          "acme.it"
+        ],
+        "token_endpoint": "https://auth.acme.it/token",
+        "revocation_endpoint": "https://auth.acme.it/revoke",
+        "authorization_endpoint": "https://auth.acme.it/authorize"
+      },
+      "issuer": "https://auth.acme.it",
+      "domain": "acme.it",
+      "sign_in_types": [
+        "direct",
+        "device"
+      ],
+      "expected": [
+        "missing_device_authorization_endpoint"
+      ]
+    },
+    {
+      "name": "mediated sign-in needs only the token and revocation endpoints",
+      "metadata": {
+        "issuer": "https://auth.acme.it",
+        "poppy_domains": [
+          "acme.it"
+        ],
+        "token_endpoint": "https://auth.acme.it/token",
+        "revocation_endpoint": "https://auth.acme.it/revoke"
+      },
+      "issuer": "https://auth.acme.it",
+      "domain": "acme.it",
+      "sign_in_types": [
+        "mediated"
+      ],
+      "expected": []
+    }
+  ],
+  "metadata_url_cases": [
+    {
+      "issuer": "https://a.it/auth/",
+      "expected": "https://a.it/.well-known/oauth-authorization-server/auth"
+    },
+    {
+      "issuer": "https://auth.acme.it",
+      "expected": "https://auth.acme.it/.well-known/oauth-authorization-server"
+    },
+    {
+      "issuer": "https://Auth.Acme.it:443/x",
+      "expected": "https://auth.acme.it/.well-known/oauth-authorization-server/x"
+    },
+    {
+      "issuer": "https://a.it:8443",
+      "expected": "https://a.it:8443/.well-known/oauth-authorization-server"
+    }
+  ],
+  "probe_cases": [
+    {
+      "name": "a valid file with good issuer metadata is valid",
+      "host": "acme.it",
+      "routes": {
+        "https://acme.it/.well-known/poppy.json": {
+          "json": {
+            "protocol_version": "0.1",
+            "organization": {
+              "name": "Acme",
+              "domain": "acme.it"
+            },
+            "auth": {
+              "issuer": "https://auth.acme.it",
+              "direct": {
+                "scopes": [
+                  "poppy:read",
+                  "poppy:write"
+                ]
+              }
+            },
+            "agent": {
+              "protocols": [
+                {
+                  "type": "poppy",
+                  "endpoint": "https://acme.it/poppy"
+                }
+              ]
+            },
+            "apis": [
+              {
+                "type": "mcp",
+                "url": "https://acme.it/mcp",
+                "description": "Ordini"
+              }
+            ]
+          }
+        },
+        "https://auth.acme.it/.well-known/oauth-authorization-server": {
+          "json": {
+            "issuer": "https://auth.acme.it",
+            "poppy_domains": [
+              "acme.it"
+            ],
+            "token_endpoint": "https://auth.acme.it/token",
+            "revocation_endpoint": "https://auth.acme.it/revoke",
+            "authorization_endpoint": "https://auth.acme.it/authorize",
+            "device_authorization_endpoint": "https://auth.acme.it/device"
+          }
+        }
+      },
+      "expected": {
+        "present": true,
+        "valid": true,
+        "issues": [],
+        "status": 200,
+        "error": null
+      }
+    },
+    {
+      "name": "a 404 is a missing file, with its status",
+      "host": "acme.it",
+      "routes": {},
+      "expected": {
+        "present": false,
+        "valid": false,
+        "issues": [],
+        "status": 404,
+        "error": null
+      }
+    },
+    {
+      "name": "an HTML page answered with 200 is a missing file",
+      "host": "acme.it",
+      "routes": {
+        "https://acme.it/.well-known/poppy.json": {
+          "body": "<!doctype html><title>404</title>"
+        }
+      },
+      "expected": {
+        "present": false,
+        "valid": false,
+        "issues": [],
+        "status": 200,
+        "error": null
+      }
+    },
+    {
+      "name": "a hop through http is flagged even when it ends on https",
+      "host": "acme.it",
+      "routes": {
+        "https://acme.it/.well-known/poppy.json": {
+          "status": 301,
+          "location": "http://acme.it/poppy.json"
+        },
+        "http://acme.it/poppy.json": {
+          "status": 301,
+          "location": "https://acme.it/poppy.json"
+        },
+        "https://acme.it/poppy.json": {
+          "json": {
+            "protocol_version": "0.1",
+            "organization": {
+              "name": "Acme",
+              "domain": "acme.it"
+            },
+            "auth": {
+              "issuer": "https://auth.acme.it",
+              "direct": {
+                "scopes": [
+                  "poppy:read",
+                  "poppy:write"
+                ]
+              }
+            },
+            "agent": {
+              "protocols": [
+                {
+                  "type": "poppy",
+                  "endpoint": "https://acme.it/poppy"
+                }
+              ]
+            },
+            "apis": [
+              {
+                "type": "mcp",
+                "url": "https://acme.it/mcp",
+                "description": "Ordini"
+              }
+            ]
+          }
+        },
+        "https://auth.acme.it/.well-known/oauth-authorization-server": {
+          "json": {
+            "issuer": "https://auth.acme.it",
+            "poppy_domains": [
+              "acme.it"
+            ],
+            "token_endpoint": "https://auth.acme.it/token",
+            "revocation_endpoint": "https://auth.acme.it/revoke",
+            "authorization_endpoint": "https://auth.acme.it/authorize",
+            "device_authorization_endpoint": "https://auth.acme.it/device"
+          }
+        }
+      },
+      "expected": {
+        "present": true,
+        "valid": false,
+        "issues": [
+          "not_https"
+        ],
+        "status": 200,
+        "error": null
+      }
+    },
+    {
+      "name": "an https redirect is followed",
+      "host": "acme.it",
+      "routes": {
+        "https://acme.it/.well-known/poppy.json": {
+          "status": 302,
+          "location": "https://www.acme.it/.well-known/poppy.json"
+        },
+        "https://www.acme.it/.well-known/poppy.json": {
+          "json": {
+            "protocol_version": "0.1",
+            "organization": {
+              "name": "Acme",
+              "domain": "acme.it"
+            },
+            "auth": {
+              "issuer": "https://auth.acme.it",
+              "direct": {
+                "scopes": [
+                  "poppy:read",
+                  "poppy:write"
+                ]
+              }
+            },
+            "agent": {
+              "protocols": [
+                {
+                  "type": "poppy",
+                  "endpoint": "https://acme.it/poppy"
+                }
+              ]
+            },
+            "apis": [
+              {
+                "type": "mcp",
+                "url": "https://acme.it/mcp",
+                "description": "Ordini"
+              }
+            ]
+          }
+        },
+        "https://auth.acme.it/.well-known/oauth-authorization-server": {
+          "json": {
+            "issuer": "https://auth.acme.it",
+            "poppy_domains": [
+              "acme.it"
+            ],
+            "token_endpoint": "https://auth.acme.it/token",
+            "revocation_endpoint": "https://auth.acme.it/revoke",
+            "authorization_endpoint": "https://auth.acme.it/authorize",
+            "device_authorization_endpoint": "https://auth.acme.it/device"
+          }
+        }
+      },
+      "expected": {
+        "present": true,
+        "valid": true,
+        "issues": [],
+        "status": 200,
+        "error": null
+      }
+    },
+    {
+      "name": "issuer metadata that are not there make the file invalid",
+      "host": "acme.it",
+      "routes": {
+        "https://acme.it/.well-known/poppy.json": {
+          "json": {
+            "protocol_version": "0.1",
+            "organization": {
+              "name": "Acme",
+              "domain": "acme.it"
+            },
+            "auth": {
+              "issuer": "https://auth.acme.it",
+              "direct": {
+                "scopes": [
+                  "poppy:read",
+                  "poppy:write"
+                ]
+              }
+            },
+            "agent": {
+              "protocols": [
+                {
+                  "type": "poppy",
+                  "endpoint": "https://acme.it/poppy"
+                }
+              ]
+            },
+            "apis": [
+              {
+                "type": "mcp",
+                "url": "https://acme.it/mcp",
+                "description": "Ordini"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "present": true,
+        "valid": false,
+        "issues": [
+          "issuer_metadata_unreachable"
+        ],
+        "status": 200,
+        "error": null
+      }
+    },
+    {
+      "name": "issuer metadata answering 500 are unreachable",
+      "host": "acme.it",
+      "routes": {
+        "https://acme.it/.well-known/poppy.json": {
+          "json": {
+            "protocol_version": "0.1",
+            "organization": {
+              "name": "Acme",
+              "domain": "acme.it"
+            },
+            "auth": {
+              "issuer": "https://auth.acme.it",
+              "direct": {
+                "scopes": [
+                  "poppy:read",
+                  "poppy:write"
+                ]
+              }
+            },
+            "agent": {
+              "protocols": [
+                {
+                  "type": "poppy",
+                  "endpoint": "https://acme.it/poppy"
+                }
+              ]
+            },
+            "apis": [
+              {
+                "type": "mcp",
+                "url": "https://acme.it/mcp",
+                "description": "Ordini"
+              }
+            ]
+          }
+        },
+        "https://auth.acme.it/.well-known/oauth-authorization-server": {
+          "status": 500,
+          "body": "error"
+        }
+      },
+      "expected": {
+        "present": true,
+        "valid": false,
+        "issues": [
+          "issuer_metadata_unreachable"
+        ],
+        "status": 200,
+        "error": null
+      }
+    },
+    {
+      "name": "issuer metadata that do not answer are unreachable",
+      "host": "acme.it",
+      "routes": {
+        "https://acme.it/.well-known/poppy.json": {
+          "json": {
+            "protocol_version": "0.1",
+            "organization": {
+              "name": "Acme",
+              "domain": "acme.it"
+            },
+            "auth": {
+              "issuer": "https://auth.acme.it",
+              "direct": {
+                "scopes": [
+                  "poppy:read",
+                  "poppy:write"
+                ]
+              }
+            },
+            "agent": {
+              "protocols": [
+                {
+                  "type": "poppy",
+                  "endpoint": "https://acme.it/poppy"
+                }
+              ]
+            },
+            "apis": [
+              {
+                "type": "mcp",
+                "url": "https://acme.it/mcp",
+                "description": "Ordini"
+              }
+            ]
+          }
+        },
+        "https://auth.acme.it/.well-known/oauth-authorization-server": {
+          "raise": "fetch"
+        }
+      },
+      "expected": {
+        "present": true,
+        "valid": false,
+        "issues": [
+          "issuer_metadata_unreachable"
+        ],
+        "status": 200,
+        "error": null
+      }
+    },
+    {
+      "name": "issuer metadata answering an HTML page are invalid",
+      "host": "acme.it",
+      "routes": {
+        "https://acme.it/.well-known/poppy.json": {
+          "json": {
+            "protocol_version": "0.1",
+            "organization": {
+              "name": "Acme",
+              "domain": "acme.it"
+            },
+            "auth": {
+              "issuer": "https://auth.acme.it",
+              "direct": {
+                "scopes": [
+                  "poppy:read",
+                  "poppy:write"
+                ]
+              }
+            },
+            "agent": {
+              "protocols": [
+                {
+                  "type": "poppy",
+                  "endpoint": "https://acme.it/poppy"
+                }
+              ]
+            },
+            "apis": [
+              {
+                "type": "mcp",
+                "url": "https://acme.it/mcp",
+                "description": "Ordini"
+              }
+            ]
+          }
+        },
+        "https://auth.acme.it/.well-known/oauth-authorization-server": {
+          "body": "<html>sign in</html>"
+        }
+      },
+      "expected": {
+        "present": true,
+        "valid": false,
+        "issues": [
+          "issuer_metadata_invalid"
+        ],
+        "status": 200,
+        "error": null
+      }
+    },
+    {
+      "name": "issuer metadata listing another domain are flagged",
+      "host": "acme.it",
+      "routes": {
+        "https://acme.it/.well-known/poppy.json": {
+          "json": {
+            "protocol_version": "0.1",
+            "organization": {
+              "name": "Acme",
+              "domain": "acme.it"
+            },
+            "auth": {
+              "issuer": "https://auth.acme.it",
+              "direct": {
+                "scopes": [
+                  "poppy:read",
+                  "poppy:write"
+                ]
+              }
+            },
+            "agent": {
+              "protocols": [
+                {
+                  "type": "poppy",
+                  "endpoint": "https://acme.it/poppy"
+                }
+              ]
+            },
+            "apis": [
+              {
+                "type": "mcp",
+                "url": "https://acme.it/mcp",
+                "description": "Ordini"
+              }
+            ]
+          }
+        },
+        "https://auth.acme.it/.well-known/oauth-authorization-server": {
+          "json": {
+            "issuer": "https://auth.acme.it",
+            "poppy_domains": [
+              "other.it"
+            ],
+            "token_endpoint": "https://auth.acme.it/token",
+            "revocation_endpoint": "https://auth.acme.it/revoke",
+            "authorization_endpoint": "https://auth.acme.it/authorize",
+            "device_authorization_endpoint": "https://auth.acme.it/device"
+          }
+        }
+      },
+      "expected": {
+        "present": true,
+        "valid": false,
+        "issues": [
+          "domain_not_in_issuer"
+        ],
+        "status": 200,
+        "error": null
+      }
+    },
+    {
+      "name": "a network error never throws",
+      "host": "acme.it",
+      "routes": {
+        "https://acme.it/.well-known/poppy.json": {
+          "raise": "fetch"
+        }
+      },
+      "expected": {
+        "present": false,
+        "valid": false,
+        "issues": [],
+        "status": null,
+        "error": "fetch"
+      }
+    },
+    {
+      "name": "a timeout reads as a timeout",
+      "host": "acme.it",
+      "routes": {
+        "https://acme.it/.well-known/poppy.json": {
+          "raise": "timeout"
+        }
+      },
+      "expected": {
+        "present": false,
+        "valid": false,
+        "issues": [],
+        "status": null,
+        "error": "timeout"
+      }
+    },
+    {
+      "name": "a file over 256 KB is not read",
+      "host": "acme.it",
+      "routes": {
+        "https://acme.it/.well-known/poppy.json": {
+          "oversize": true
+        }
+      },
+      "expected": {
+        "present": false,
+        "valid": false,
+        "issues": [],
+        "status": 200,
+        "error": "too_large"
+      }
+    },
+    {
+      "name": "a JSON array is published but not a document",
+      "host": "acme.it",
+      "routes": {
+        "https://acme.it/.well-known/poppy.json": {
+          "json": []
+        }
+      },
+      "expected": {
+        "present": true,
+        "valid": false,
+        "issues": [
+          "not_an_object"
+        ],
+        "status": 200,
+        "error": null
+      }
+    },
+    {
+      "name": "NaN is not JSON, so the file is missing",
+      "host": "acme.it",
+      "routes": {
+        "https://acme.it/.well-known/poppy.json": {
+          "body": "{\"protocol_version\": NaN}"
+        }
+      },
+      "expected": {
+        "present": false,
+        "valid": false,
+        "issues": [],
+        "status": 200,
+        "error": null
+      }
+    },
+    {
+      "name": "metadata without the required endpoints make the file invalid",
+      "host": "acme.it",
+      "routes": {
+        "https://acme.it/.well-known/poppy.json": {
+          "json": {
+            "protocol_version": "0.1",
+            "organization": {
+              "name": "Acme",
+              "domain": "acme.it"
+            },
+            "auth": {
+              "issuer": "https://auth.acme.it",
+              "direct": {
+                "scopes": [
+                  "poppy:read",
+                  "poppy:write"
+                ]
+              }
+            },
+            "agent": {
+              "protocols": [
+                {
+                  "type": "poppy",
+                  "endpoint": "https://acme.it/poppy"
+                }
+              ]
+            },
+            "apis": [
+              {
+                "type": "mcp",
+                "url": "https://acme.it/mcp",
+                "description": "Ordini"
+              }
+            ]
+          }
+        },
+        "https://auth.acme.it/.well-known/oauth-authorization-server": {
+          "json": {
+            "issuer": "https://auth.acme.it",
+            "poppy_domains": [
+              "acme.it"
+            ]
+          }
+        }
+      },
+      "expected": {
+        "present": true,
+        "valid": false,
+        "issues": [
+          "missing_token_endpoint",
+          "missing_revocation_endpoint",
+          "missing_authorization_endpoint"
+        ],
+        "status": 200,
+        "error": null
+      }
+    }
+  ]
+}
