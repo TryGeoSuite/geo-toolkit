@@ -5,7 +5,9 @@ import { validatePoppyDocument, checkIssuerMetadata, issuerMetadataUrl, probePop
 
 const ISSUER = 'https://auth.acme.it';
 const METADATA_URL = ISSUER + '/.well-known/oauth-authorization-server';
-const GOOD_METADATA = { issuer: ISSUER, poppy_domains: ['acme.it'] };
+// A real sign-in server also lists the endpoints the spec makes required.
+const ENDPOINTS = { token_endpoint: ISSUER + '/token', revocation_endpoint: ISSUER + '/revoke', authorization_endpoint: ISSUER + '/authorize' };
+const GOOD_METADATA = { issuer: ISSUER, poppy_domains: ['acme.it'], ...ENDPOINTS };
 
 const doc = (over = {}) => ({
   protocol_version: '0.1',
@@ -66,7 +68,7 @@ test('issuer metadata: the path goes after the well-known segment', () => {
 
 test('issuer metadata must name the issuer and list the domain', () => {
   assert.deepEqual(checkIssuerMetadata(GOOD_METADATA, ISSUER, 'www.acme.it'), []);
-  assert.deepEqual(checkIssuerMetadata({ issuer: 'https://x.it', poppy_domains: [] }, ISSUER, 'acme.it'), ['issuer_mismatch', 'domain_not_in_issuer']);
+  assert.deepEqual(checkIssuerMetadata({ issuer: 'https://x.it', poppy_domains: [], ...ENDPOINTS }, ISSUER, 'acme.it'), ['issuer_mismatch', 'domain_not_in_issuer']);
   assert.deepEqual(checkIssuerMetadata('nope', ISSUER, 'acme.it'), ['issuer_metadata_invalid']);
 });
 
@@ -97,4 +99,13 @@ test('probe: a network error never throws', async () => {
   const out = await probePoppy('acme.it', async () => { throw new Error('boom'); });
   assert.equal(out.present, false);
   assert.equal(out.error, 'fetch');
+});
+
+test('the check page explains every issue code, in both languages', async () => {
+  const { ISSUE_CODES } = await import('../poppy.js');
+  const { renderCheckPage } = await import('../check-page.js');
+  for (const lang of ['en', 'it']) {
+    const html = renderCheckPage(lang, '');
+    for (const code of ISSUE_CODES) assert.ok(html.includes(`"${code}":`), `${lang}: ${code}`);
+  }
 });
