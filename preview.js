@@ -15,8 +15,9 @@
 // It costs money, so it sits behind three limits: a 7-day cache per domain (a
 // cached answer is free and does not count), a per-visitor daily cap and a
 // global daily cap, both counted in the PreviewBudget Durable Object. The
-// thorough version, many questions across several models, is GeoSuite's free
-// analysis, which is where the result sends people.
+// thorough version, many questions across several models, is GeoSuite's own
+// audit, shown in a demo or run after signing up: that is where the result
+// sends people.
 
 const UA = 'geosuite-open-check/1.0 (+https://tools.trygeosuite.it/check)';
 const CACHE_TTL_S = 7 * 24 * 3600;

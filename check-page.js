@@ -7,14 +7,16 @@
 //
 // Visuals and the shared components come from theme.js, like the hub's.
 //
-// The page ends on GeoSuite's free analysis: one question is a taste, the
-// analysis asks many across several models, behind GeoSuite's own form.
+// The score measures whether AI can read the site (technical readiness), not
+// whether AI recommends it: the page says so next to the number, so nobody
+// takes it for GeoSuite's visibility score. The page ends on a demo of
+// GeoSuite, with signing up (one audit included) as the smaller way in.
 
 import { WEIGHTS } from './check.js';
-import { FONTS, BASE_CSS, ENGINES } from './theme.js';
+import { FONTS, BASE_CSS, ENGINES, SIGNUP, ctaActions } from './theme.js';
 
 const BASE = 'https://tools.trygeosuite.it';
-const ANALYSIS = 'https://trygeosuite.it/analisi-gratuita';
+const SIGNUP_HREF = SIGNUP + '?utm_source=geosuite-open&utm_medium=tool&utm_campaign=ai-readiness-check';
 
 const TOOL_LINKS = {
   crawlers: 'https://ai-crawl-check.geosuite.workers.dev',
@@ -55,10 +57,13 @@ const S = {
     you: 'you',
     answerHead: 'The AI’s answer',
     readHead: 'Can AI read your site?',
+    readNote: 'Technical readiness of the site, not visibility in AI: it says whether AI can read your site, not whether it recommends you.',
     readMore: 'What we checked',
-    ctaTitle: 'One question is a taste. The full picture is free too.',
-    ctaText: 'GeoSuite asks ChatGPT, Gemini and Perplexity the questions your customers really ask, and tells you where you appear, who wins instead and what to fix first. The report arrives by email.',
-    ctaButton: 'Get the free analysis',
+    ctaTitle: 'One question is a taste. We can show you the full picture.',
+    ctaText: 'GeoSuite asks ChatGPT, Gemini and Perplexity the questions your customers really ask, and tells you where you appear, who wins instead and what to fix first. In a demo we go through it together, on your site.',
+    ctaButton: 'Book a demo',
+    ctaAlt: 'Or sign up and run your own audit',
+    ctaAltNote: 'Your account comes with one audit included',
     share: 'Copy link to this result',
     ownLabel: 'Try your own question',
     ownPlaceholder: 'e.g. What are the best tools to see if ChatGPT recommends my company?',
@@ -82,10 +87,13 @@ const S = {
     you: 'tu',
     answerHead: 'La risposta dell’AI',
     readHead: 'Le AI riescono a leggere il tuo sito?',
+    readNote: 'Prontezza tecnica del sito, non visibilità nelle AI: dice se le AI riescono a leggere il tuo sito, non se ti consigliano.',
     readMore: 'Cosa abbiamo controllato',
-    ctaTitle: 'Una domanda è un assaggio. Anche il quadro completo è gratis.',
-    ctaText: 'GeoSuite fa a ChatGPT, Gemini e Perplexity le domande che i tuoi clienti fanno davvero, e ti dice dove compari, chi vince al posto tuo e cosa correggere per primo. Il report arriva via mail.',
-    ctaButton: 'Richiedi l’analisi gratuita',
+    ctaTitle: 'Una domanda è un assaggio. Il quadro completo te lo mostriamo noi.',
+    ctaText: 'GeoSuite fa a ChatGPT, Gemini e Perplexity le domande che i tuoi clienti fanno davvero, e ti dice dove compari, chi vince al posto tuo e cosa correggere per primo. In una demo lo guardiamo insieme, sul tuo sito.',
+    ctaButton: 'Prenota una demo',
+    ctaAlt: 'Oppure registrati e lancia il tuo audit',
+    ctaAltNote: 'Account con un audit incluso',
     share: 'Copia il link a questo risultato',
     ownLabel: 'Prova con la tua domanda',
     ownPlaceholder: 'Es. Quali strumenti mi dicono se ChatGPT consiglia la mia azienda?',
@@ -119,7 +127,7 @@ const C = {
       invalid_url: 'Enter a public website address, like yoursite.com.',
       unreachable: 'The site did not answer. Check the address and try again.',
       generic: 'Something went wrong. Try again in a minute.',
-      limit: 'You have used today’s free AI answers. The technical check below still works, and the full analysis has no such limit.',
+      limit: 'You have used today’s free AI answers. The technical check below still works.',
       busy: 'Too many requests today: the AI answer is paused until tomorrow. The technical check below still works.',
       unclear: 'From your home page we could not tell what you sell, so we could not ask the question.',
       names_site: 'Your question names the site itself: ask it the way a customer who does not know you yet would.',
@@ -194,7 +202,7 @@ const C = {
       invalid_url: 'Scrivi l’indirizzo di un sito pubblico, per esempio tuosito.it.',
       unreachable: 'Il sito non ha risposto. Controlla l’indirizzo e riprova.',
       generic: 'Qualcosa non ha funzionato. Riprova fra un minuto.',
-      limit: 'Hai usato le risposte AI gratuite di oggi. Il controllo tecnico qui sotto funziona lo stesso, e l’analisi completa non ha questo limite.',
+      limit: 'Hai usato le risposte AI gratuite di oggi. Il controllo tecnico qui sotto funziona lo stesso.',
       busy: 'Troppe richieste oggi: la risposta AI riprende domani. Il controllo tecnico qui sotto funziona lo stesso.',
       unclear: 'Dalla tua home non capiamo cosa vendi, quindi non abbiamo potuto fare la domanda.',
       names_site: 'La domanda nomina il sito stesso: falla come la farebbe un cliente che ancora non ti conosce.',
@@ -299,7 +307,7 @@ export function exampleCard(lang) {
 // initialQuestion: the ?q= of a shared link, the visitor's own question.
 export function renderCheckPage(lang, initialUrl, initialQuestion = '') {
   const t = S[lang] || S.en;
-  const config = { lang, weights: WEIGHTS, tools: TOOL_LINKS, analysis: ANALYSIS, icons: ICONS, q: String(initialQuestion || '').slice(0, 500) };
+  const config = { lang, weights: WEIGHTS, tools: TOOL_LINKS, icons: ICONS, q: String(initialQuestion || '').slice(0, 500) };
 
   return `<!doctype html>
 <html lang="${lang}">
@@ -356,7 +364,8 @@ ${BASE_CSS}
 
   .read { margin-top:16px; }
   .read-head { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:20px 24px; }
-  .read-head h2 { font-size:1.0625rem; margin:0 0 10px; }
+  .read-head h2 { font-size:1.0625rem; margin:0 0 4px; }
+  .read-note { color:var(--ink-3); font-size:.8125rem; margin:0 0 10px; max-width:60ch; }
   .chips { display:flex; flex-wrap:wrap; gap:8px; list-style:none; margin:0; padding:0; }
   .chips li { display:inline-flex; align-items:center; gap:6px; padding:4px 10px 4px 6px; border-radius:999px; background:var(--sunk); font-size:.8125rem; font-weight:500; }
   .chips svg { width:16px; height:16px; } .chips svg path { stroke:#fff; }
@@ -436,8 +445,8 @@ ${BASE_CSS}
 
     <section class="panel read" id="read" hidden aria-labelledby="read-title">
       <div class="read-head">
-        <div><h2 id="read-title">${t.readHead}</h2><ul class="chips" id="chips"></ul></div>
-        <div class="score" id="score"></div>
+        <div><h2 id="read-title">${t.readHead}</h2><p class="read-note" id="read-note">${t.readNote}</p><ul class="chips" id="chips"></ul></div>
+        <div class="score" id="score" aria-describedby="read-note"></div>
       </div>
       <details><summary>${t.readMore}</summary><ul class="checks" id="checks"></ul></details>
     </section>
@@ -448,7 +457,7 @@ ${BASE_CSS}
         <p>${t.ctaText}</p>
         ${ENGINES}
       </div>
-      <a class="primary" id="cta-link" href="${ANALYSIS}" target="_blank" rel="noopener">${t.ctaButton}</a>
+      ${ctaActions(t, SIGNUP_HREF)}
     </section>
     <div class="sharebar" id="sharebar" hidden><button type="button" class="ghost" id="share">${t.share}</button></div>
   </main>
@@ -609,11 +618,6 @@ ${BASE_CSS}
     $('read').hidden = false;
   }
 
-  function analysisUrl(origin) {
-    var q = new URLSearchParams({ url: host(origin), utm_source: 'geosuite-open', utm_medium: 'tool', utm_campaign: 'ai-readiness-check' });
-    return CFG.analysis + '?' + q.toString();
-  }
-
   function get(path, value, q) {
     return fetch(path + '?url=' + encodeURIComponent(value) + '&lang=' + CFG.lang + (q ? '&q=' + encodeURIComponent(q) : '')).then(function (res) { return res.json(); });
   }
@@ -657,7 +661,6 @@ ${BASE_CSS}
         return 'stop';
       }
       showRead(r);
-      $('cta-link').href = analysisUrl(r.origin);
       $('cta').hidden = false; $('sharebar').hidden = false;
       site = host(r.origin);
       history.replaceState(null, '', shareUrl());

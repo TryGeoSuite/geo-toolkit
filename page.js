@@ -9,11 +9,11 @@
 // The page also dogfoods the toolkit it advertises: JSON-LD structured data here,
 // plus /robots.txt, /llms.txt, /sitemap.xml and an OG image served by the worker.
 
-import { FONTS, BASE_CSS, ENGINES } from './theme.js';
+import { FONTS, BASE_CSS, ENGINES, SIGNUP, ctaActions } from './theme.js';
 import { exampleCard, ICONS } from './check-page.js';
 
 const BASE = 'https://tools.trygeosuite.it';
-const ANALYSIS = 'https://trygeosuite.it/analisi-gratuita?utm_source=geosuite-open&utm_medium=tool&utm_campaign=hub';
+const SIGNUP_HREF = SIGNUP + '?utm_source=geosuite-open&utm_medium=tool&utm_campaign=hub';
 
 // Line icons, 24px grid, drawn with currentColor: decoration next to the name,
 // never the only label.
@@ -86,8 +86,10 @@ const S = {
     copied: 'Copied',
     copyLabel: 'Copy the command',
     ctaTitle: 'Readable is step one. Recommended is the goal.',
-    ctaText: 'GeoSuite asks ChatGPT, Gemini and Perplexity the questions your customers really ask, and tells you where you appear, who wins instead and what to fix first. The report arrives by email.',
-    ctaButton: 'Get the free analysis',
+    ctaText: 'GeoSuite asks ChatGPT, Gemini and Perplexity the questions your customers really ask, and tells you where you appear, who wins instead and what to fix first. In a demo we go through it together, on your site.',
+    ctaButton: 'Book a demo',
+    ctaAlt: 'Or sign up and run your own audit',
+    ctaAltNote: 'Your account comes with one audit included',
     footer: 'Open source (MIT) by <a href="https://github.com/matte97p">Matteo Perino</a>, maintained under <a href="https://trygeosuite.it">GeoSuite</a>, the Italian platform for AI visibility. Code on <a href="https://github.com/TryGeoSuite">github.com/TryGeoSuite</a>.',
     tools: [
       'See which AI crawlers (GPTBot, ClaudeBot, PerplexityBot…) your <code>robots.txt</code> allows or blocks, with an AI-visibility score. Plus a public bot-list API.',
@@ -116,8 +118,10 @@ const S = {
     copied: 'Copiato',
     copyLabel: 'Copia il comando',
     ctaTitle: 'Farsi leggere è il primo passo. Farsi consigliare è l’obiettivo.',
-    ctaText: 'GeoSuite fa a ChatGPT, Gemini e Perplexity le domande che i tuoi clienti fanno davvero, e ti dice dove compari, chi vince al posto tuo e cosa correggere per primo. Il report arriva via mail.',
-    ctaButton: 'Richiedi l’analisi gratuita',
+    ctaText: 'GeoSuite fa a ChatGPT, Gemini e Perplexity le domande che i tuoi clienti fanno davvero, e ti dice dove compari, chi vince al posto tuo e cosa correggere per primo. In una demo lo guardiamo insieme, sul tuo sito.',
+    ctaButton: 'Prenota una demo',
+    ctaAlt: 'Oppure registrati e lancia il tuo audit',
+    ctaAltNote: 'Account con un audit incluso',
     footer: 'Open source (MIT) di <a href="https://github.com/matte97p">Matteo Perino</a>, mantenuto da <a href="https://trygeosuite.it">GeoSuite</a>, la piattaforma italiana per la visibilità sulle AI. Codice su <a href="https://github.com/TryGeoSuite">github.com/TryGeoSuite</a>.',
     tools: [
       'Scopri quali crawler AI (GPTBot, ClaudeBot, PerplexityBot…) il tuo <code>robots.txt</code> permette o blocca, con un punteggio di visibilità AI. Più una API pubblica con la lista dei bot.',
@@ -278,7 +282,7 @@ ${cards}
         <p>${t.ctaText}</p>
         ${ENGINES}
       </div>
-      <a class="primary" href="${ANALYSIS}" target="_blank" rel="noopener">${t.ctaButton}</a>
+      ${ctaActions(t, SIGNUP_HREF)}
     </section>
   </main>
 
