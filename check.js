@@ -16,8 +16,8 @@
 // fetch plus a parse, no AI, no cost per scan.
 //
 // It answers "can AI models read this site?". Whether they actually CITE it is
-// a different question, measured by GeoSuite's free analysis, which is where
-// the result page sends people.
+// a different question, measured by GeoSuite's own audit: the result page
+// sends people to a demo of it, or to sign up and run one.
 
 import { probePoppy } from './poppy.js';
 

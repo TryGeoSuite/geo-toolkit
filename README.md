@@ -53,8 +53,9 @@ that deploys to **tools.trygeosuite.it**. It does a bit more than serve static H
   plain fetches, no AI, no cost per scan. Results are cached per site for 10
   minutes and counted in the `ai_readiness_check` Analytics Engine dataset (target
   domain and scores, nothing about the visitor). A shared `/check?url=…` link
-  re-runs the scan. The result ends on GeoSuite's free analysis, prefilled with
-  the site, which is where the "do AI models cite you?" part lives.
+  re-runs the scan. The score is labelled as the site's technical readiness, not
+  its visibility in AI, and the result ends on a GeoSuite demo, with signing up
+  (an account comes with one audit included) as the smaller second option.
 - **What does the AI answer? (`GET /api/preview?url=`, [`preview.js`](preview.js)):**
   under the check, one real question to a model. A first call reads the home
   page and writes the question a customer would ask (in the site's language,

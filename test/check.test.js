@@ -130,3 +130,23 @@ test('scoreOf: a home behind a bot wall leaves schema out instead of zeroing it'
   assert.equal(r.schema, null);
   assert.equal(r.total, 73); // (40 + 0 + 15) / 75
 });
+
+test('the check and the hub end on a demo, then signup, never on the old free analysis', async () => {
+  const { renderCheckPage } = await import('../check-page.js');
+  const { renderPage } = await import('../page.js');
+  const { DEMO, SIGNUP } = await import('../theme.js');
+  for (const lang of ['en', 'it']) {
+    for (const html of [renderCheckPage(lang, ''), renderPage(lang, null)]) {
+      assert.ok(!html.includes('analisi-gratuita'), `${lang}: no link to the retired free analysis`);
+      const demoAt = html.indexOf(`href="${DEMO}"`);
+      const signupAt = html.indexOf(`href="${SIGNUP}?`);
+      assert.ok(demoAt > 0 && signupAt > demoAt, `${lang}: demo first, signup second`);
+    }
+  }
+});
+
+test('the check score says it is technical readiness, not AI visibility', async () => {
+  const { renderCheckPage } = await import('../check-page.js');
+  assert.ok(renderCheckPage('it', '').includes('Prontezza tecnica del sito, non visibilità nelle AI'));
+  assert.ok(renderCheckPage('en', '').includes('Technical readiness of the site, not visibility in AI'));
+});

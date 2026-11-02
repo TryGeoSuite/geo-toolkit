@@ -95,6 +95,10 @@ export const BASE_CSS = `
   .engines span { display:inline-flex; align-items:center; gap:6px; color:var(--ink-2); font-weight:500; }
   .engines img { width:20px; height:20px; display:block; }
   .cta a.primary { display:inline-flex; align-items:center; text-decoration:none; }
+  .cta-actions { display:flex; flex-direction:column; align-items:center; gap:10px; text-align:center; }
+  .cta-actions .alt { display:inline-flex; align-items:center; min-height:44px; color:var(--ink-2); font-size:.875rem; font-weight:500; }
+  .cta-actions .alt:hover { color:var(--ink); }
+  .cta-actions small { display:block; color:var(--ink-3); font-size:.75rem; margin-top:-10px; }
   .ghost { background:none; border:1px solid var(--line-2); color:var(--ink-2); border-radius:8px; padding:8px 12px; font-size:.875rem; min-height:36px; }
   .ghost:hover { color:var(--ink); border-color:var(--ink-3); }
 
@@ -108,8 +112,25 @@ export const BASE_CSS = `
     .primary { width:100%; }
     .cta { grid-template-columns:1fr; padding:20px; }
     .cta a.primary { justify-content:center; }
+    .cta-actions { align-items:stretch; }
   }
 `;
+
+// Where the toolkit pages send people once the check is done: a demo first,
+// signing up second. The demo is the booking page linked from trygeosuite.it's
+// contact page; a new account comes with credits for one full audit.
+export const DEMO = 'https://calendar.app.google/sf9RzYsQNGf5KrfP7';
+export const SIGNUP = 'https://trygeosuite.it/signup';
+
+// The two actions under the CTA copy. t: { ctaButton, ctaAlt, ctaAltNote }.
+// signupHref already carries the page's own utm parameters.
+export function ctaActions(t, signupHref) {
+  return `<div class="cta-actions">
+        <a class="primary" href="${DEMO}" target="_blank" rel="noopener">${t.ctaButton}</a>
+        <a class="alt" href="${signupHref}" target="_blank" rel="noopener">${t.ctaAlt}</a>
+        <small>${t.ctaAltNote}</small>
+      </div>`;
+}
 
 // The three engines GeoSuite's analysis asks, served by the worker at /logos/.
 export const ENGINES = `<div class="engines" aria-hidden="true">
