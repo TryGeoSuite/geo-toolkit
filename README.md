@@ -46,7 +46,7 @@ that deploys to **tools.trygeosuite.it**. It does a bit more than serve static H
   an ItemList of the five `SoftwareApplication`s) in the page head.
 - **AI Readiness Check (`/check`, `/en/check`, `/it/check`):** runs the toolkit
   against one site through `GET /api/scan?url=` ([`check.js`](check.js)). The
-  `/.well-known/poppy.json` is checked like an agent would (draft 0.1 of the
+  `/.well-known/poppy.json` is checked like an agent would (draft 0.3 of the
   Personal Agent Protocol, [`poppy.js`](poppy.js)), shown but outside the score. The
   robots.txt verdict is asked to the `ai-crawl-check` Worker over a service
   binding, so both pages show the same score; `llms.txt`, JSON-LD and sitemap are

@@ -1,18 +1,23 @@
 // Ported from GeoSuite's backend/tests/ingestion/test_personal_agent_protocol.py.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validatePoppyDocument, checkIssuerMetadata, issuerMetadataUrl, probePoppy } from '../poppy.js';
+import { validatePoppyDocument, checkIssuerMetadata, issuerMetadataUrl, probePoppy, resolveIssuer, signInTypesFrom } from '../poppy.js';
 
 const ISSUER = 'https://auth.acme.it';
+const POPPY_URL = 'https://acme.it/.well-known/poppy.json';
+const PRM_URL = 'https://acme.it/.well-known/oauth-protected-resource';
 const METADATA_URL = ISSUER + '/.well-known/oauth-authorization-server';
-// A real sign-in server also lists the endpoints the spec makes required.
+// What a real sign-in server publishes for draft 0.3: the domain in
+// protected_resources, the grant types, and the endpoints the spec makes
+// required (token and revocation always, authorization for authorization_code).
 const ENDPOINTS = { token_endpoint: ISSUER + '/token', revocation_endpoint: ISSUER + '/revoke', authorization_endpoint: ISSUER + '/authorize' };
-const GOOD_METADATA = { issuer: ISSUER, poppy_domains: ['acme.it'], ...ENDPOINTS };
+const GOOD_METADATA = { issuer: ISSUER, protected_resources: ['https://acme.it'], grant_types_supported: ['refresh_token', 'authorization_code'], ...ENDPOINTS };
+const GOOD_PRM = { resource: 'https://acme.it', authorization_servers: [ISSUER] };
 
 const doc = (over = {}) => ({
-  protocol_version: '0.1',
+  protocol_version: '0.3',
   organization: { name: 'Acme', domain: 'acme.it' },
-  auth: { issuer: ISSUER, direct: { scopes: ['poppy:read', 'poppy:write'] } },
+  auth: { issuer: ISSUER },
   agent: { protocols: [{ type: 'poppy', endpoint: 'https://acme.it/poppy' }] },
   apis: [{ type: 'mcp', url: 'https://acme.it/mcp', description: 'Ordini' }],
   ...over,
@@ -29,21 +34,21 @@ function fakeFetch(routes) {
 }
 
 test('a complete document is valid', () => {
-  const out = validatePoppyDocument(doc(), 'www.acme.it');
+  const out = validatePoppyDocument(doc(), 'acme.it');
   assert.equal(out.valid, true);
   assert.deepEqual(out.issues, []);
-  assert.deepEqual(out.signInTypes, ['direct']);
   assert.deepEqual(out.apiTypes, ['mcp']);
   assert.equal(out.hasConversation, true);
   assert.equal(out.issuer, ISSUER);
 });
 
-test('the domain must match the requested host', () => {
+test('the domain must be the host that served the file, www included', () => {
   assert.ok(validatePoppyDocument(doc(), 'other.it').issues.includes('domain_mismatch'));
+  assert.ok(validatePoppyDocument(doc(), 'www.acme.it').issues.includes('domain_mismatch'));
 });
 
-test('a new major version is not usable', () => {
-  assert.ok(validatePoppyDocument(doc({ protocol_version: '1.0' }), 'acme.it').issues.includes('unsupported_major_version'));
+test('only draft 0.3 is usable', () => {
+  for (const v of ['0.1', '0.2', '1.0']) assert.deepEqual(validatePoppyDocument(doc({ protocol_version: v }), 'acme.it').issues, ['unsupported_version'], v);
 });
 
 test('a document without channels is invalid', () => {
@@ -53,8 +58,11 @@ test('a document without channels is invalid', () => {
   assert.deepEqual(validatePoppyDocument(d, 'acme.it').issues, ['no_channels']);
 });
 
-test('channels need an https issuer', () => {
-  assert.ok(validatePoppyDocument(doc({ auth: { issuer: 'http://auth.acme.it' } }), 'acme.it').issues.includes('missing_auth_issuer'));
+test('auth is optional, but a declared issuer must be https', () => {
+  const d = doc();
+  delete d.auth;
+  assert.equal(validatePoppyDocument(d, 'acme.it').valid, true);
+  assert.deepEqual(validatePoppyDocument(doc({ auth: { issuer: 'http://auth.acme.it' } }), 'acme.it').issues, ['invalid_auth_issuer']);
 });
 
 test('a JSON array is not a document', () => {
@@ -66,32 +74,57 @@ test('issuer metadata: the path goes after the well-known segment', () => {
   assert.equal(issuerMetadataUrl(ISSUER), METADATA_URL);
 });
 
-test('issuer metadata must name the issuer and list the domain', () => {
-  assert.deepEqual(checkIssuerMetadata(GOOD_METADATA, ISSUER, 'www.acme.it'), []);
-  assert.deepEqual(checkIssuerMetadata({ issuer: 'https://x.it', poppy_domains: [], ...ENDPOINTS }, ISSUER, 'acme.it'), ['issuer_mismatch', 'domain_not_in_issuer']);
+test('issuer metadata must have the endpoints and grant types the spec makes required, https only', () => {
+  const two = { issuer: ISSUER, protected_resources: ['https://acme.it'] };
+  assert.deepEqual(checkIssuerMetadata(two, ISSUER, 'acme.it'), ['missing_token_endpoint', 'missing_revocation_endpoint', 'invalid_grant_types']);
+  const grants = ['refresh_token', 'authorization_code', 'urn:ietf:params:oauth:grant-type:device_code'];
+  assert.deepEqual(checkIssuerMetadata({ ...two, token_endpoint: ISSUER + '/token', revocation_endpoint: ISSUER + '/revoke', grant_types_supported: grants }, ISSUER, 'acme.it'), ['missing_authorization_endpoint', 'missing_device_authorization_endpoint']);
+  assert.deepEqual(checkIssuerMetadata({ ...GOOD_METADATA, revocation_endpoint: 'http://auth.acme.it/revoke' }, ISSUER, 'acme.it'), ['missing_revocation_endpoint']);
+});
+
+test('issuer metadata must name the issuer and list the domain in protected_resources', () => {
+  assert.deepEqual(checkIssuerMetadata(GOOD_METADATA, ISSUER, 'acme.it'), []);
+  assert.deepEqual(checkIssuerMetadata(GOOD_METADATA, ISSUER, 'www.acme.it'), ['domain_not_in_issuer']);
+  assert.deepEqual(checkIssuerMetadata({ ...GOOD_METADATA, issuer: 'https://x.it', protected_resources: [] }, ISSUER, 'acme.it'), ['issuer_mismatch', 'domain_not_in_issuer']);
   assert.deepEqual(checkIssuerMetadata('nope', ISSUER, 'acme.it'), ['issuer_metadata_invalid']);
 });
 
-test('probe: a valid file with good issuer metadata is valid', async () => {
-  const out = await probePoppy('acme.it', fakeFetch({ 'https://acme.it/.well-known/poppy.json': { body: doc() }, [METADATA_URL]: { body: GOOD_METADATA } }));
+test('resolveIssuer reads the protected resource metadata the way spec 3.2 does', () => {
+  assert.deepEqual(resolveIssuer(null, 'acme.it', null, false), { issuer: null, issues: [] });
+  assert.deepEqual(resolveIssuer(null, 'acme.it', ISSUER, false), { issuer: null, issues: ['sign_in_without_issuer'] });
+  assert.deepEqual(resolveIssuer(GOOD_PRM, 'acme.it', null, false), { issuer: ISSUER, issues: [] });
+  assert.deepEqual(resolveIssuer({ ...GOOD_PRM, resource: 'https://acme.it/' }, 'acme.it', null, false), { issuer: null, issues: ['protected_resource_invalid'] });
+  assert.deepEqual(resolveIssuer({ ...GOOD_PRM, authorization_servers: [ISSUER, 'https://staff.acme.it'] }, 'acme.it', null, false), { issuer: null, issues: ['missing_auth_issuer'] });
+  assert.deepEqual(resolveIssuer(GOOD_PRM, 'acme.it', 'https://staff.acme.it', false), { issuer: null, issues: ['issuer_not_listed'] });
+});
+
+test('sign-in types come from the grant types and the mediated extension, none when turned off', () => {
+  const meta = { grant_types_supported: ['refresh_token', 'urn:ietf:params:oauth:grant-type:device_code', 'authorization_code'] };
+  assert.deepEqual(signInTypesFrom(meta, { signInTypes: ['mediated'], signInDisabled: false }), ['direct', 'device', 'mediated']);
+  assert.deepEqual(signInTypesFrom(meta, { signInTypes: [], signInDisabled: true }), []);
+});
+
+test('probe: a valid file with good discovery is valid', async () => {
+  const out = await probePoppy('acme.it', fakeFetch({ [POPPY_URL]: { body: doc() }, [PRM_URL]: { body: GOOD_PRM }, [METADATA_URL]: { body: GOOD_METADATA } }));
   assert.equal(out.present, true);
   assert.equal(out.valid, true);
+  assert.deepEqual(out.signInTypes, ['direct']);
 });
 
 test('probe: an HTML 404 page answered with 200 is a missing file', async () => {
-  const out = await probePoppy('acme.it', fakeFetch({ 'https://acme.it/.well-known/poppy.json': '<!doctype html><title>404</title>' }));
+  const out = await probePoppy('acme.it', fakeFetch({ [POPPY_URL]: '<!doctype html><title>404</title>' }));
   assert.equal(out.present, false);
   assert.equal(out.valid, false);
 });
 
 test('probe: unreachable issuer metadata make the file invalid', async () => {
-  const out = await probePoppy('acme.it', fakeFetch({ 'https://acme.it/.well-known/poppy.json': { body: doc() } }));
+  const out = await probePoppy('acme.it', fakeFetch({ [POPPY_URL]: { body: doc() }, [PRM_URL]: { body: GOOD_PRM } }));
   assert.equal(out.present, true);
   assert.deepEqual(out.issues, ['issuer_metadata_unreachable']);
 });
 
 test('probe: a file that lands on http is flagged', async () => {
-  const out = await probePoppy('acme.it', fakeFetch({ 'https://acme.it/.well-known/poppy.json': { body: doc(), finalUrl: 'http://acme.it/.well-known/poppy.json' } }));
+  const out = await probePoppy('acme.it', fakeFetch({ [POPPY_URL]: { body: doc(), finalUrl: 'http://acme.it/.well-known/poppy.json' } }));
   assert.ok(out.issues.includes('not_https'));
 });
 
