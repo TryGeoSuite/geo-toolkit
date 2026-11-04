@@ -4,15 +4,19 @@
 // fixture both repos and GeoSuite's audit run.
 //
 //
-// Personal Agent Protocol ("Poppy", Sierra and Meta, draft 0.1 of 09/10/2026,
+// Personal Agent Protocol ("Poppy", Sierra and Meta, draft 0.3,
 // https://personalagentprotocol.org/docs/spec): the standard a person's own AI
 // agent uses to find a company, sign in with that person's account and act for
 // them. It all starts from one file, /.well-known/poppy.json.
 //
-// We read that file and check what an agent would check before using it:
-// version, domain, at least one channel, the OAuth issuer and its metadata
-// (RFC 8414), which must list the domain in `poppy_domains`. A file that fails
-// these checks is, to an agent, the same as no file.
+// We read that file and check what an agent would check before using it
+// (spec section 3): the version, the domain against the host that served the
+// file, at least one channel. Then the discovery of the sign-in server: the
+// domain's protected resource metadata (RFC 9728) names the OAuth issuer, or
+// says there is none, and the issuer's metadata (RFC 8414) must list the
+// domain in `protected_resources` and have the endpoints and grant types the
+// spec requires. A file that fails these checks is, to an agent, the same as
+// no file.
 //
 // This file is ported from GeoSuite's audit
 // (backend/services/ingestion/personal_agent_protocol.py, TRY-192), issue codes
@@ -26,10 +30,15 @@
 // list and the optional `userAgent` of probePoppy.
 
 export const POPPY_PATH = '/.well-known/poppy.json';
+export const PROTECTED_RESOURCE_PATH = '/.well-known/oauth-protected-resource';
 export const SPEC_URL = 'https://personalagentprotocol.org/docs/spec';
-const SUPPORTED_MAJOR_VERSIONS = new Set(['0']);
+// Before 1.0 every minor version can break the one before (spec 3.1): an agent
+// uses only the `major.minor` versions it knows.
+const SUPPORTED_VERSIONS = new Set(['0.3']);
 const API_TYPES = new Set(['openapi', 'mcp']);
-const SIGN_IN_TYPES = ['direct', 'device', 'mediated'];
+const MEDIATED_EXTENSION = 'mediated-sign-in';
+const DIRECT_GRANT = 'authorization_code';
+const DEVICE_GRANT = 'urn:ietf:params:oauth:grant-type:device_code';
 const MAX_DOCUMENT_BYTES = 256_000;
 const FETCH_TIMEOUT_MS = 8000;
 const MAX_REDIRECTS = 20; // httpx's default, what the audit follows
@@ -40,29 +49,35 @@ const UA = 'geosuite-open-check/1.0 (+https://tools.trygeosuite.it/check)';
 export const ISSUE_CODES = [
   'not_an_object',
   'missing_protocol_version',
-  'unsupported_major_version',
+  'unsupported_version',
   'missing_organization',
   'domain_mismatch',
   'invalid_agent_protocol',
   'invalid_api_entry',
   'invalid_browser_session_endpoint',
   'no_channels',
-  'missing_auth_issuer',
+  'invalid_auth_issuer',
+  'sign_in_conflict',
   'not_https',
+  'wrong_final_path',
+  'protected_resource_unreachable',
+  'protected_resource_invalid',
+  'missing_auth_issuer',
+  'issuer_not_listed',
+  'sign_in_without_issuer',
   'issuer_metadata_unreachable',
   'issuer_metadata_invalid',
   'issuer_mismatch',
   'domain_not_in_issuer',
   'missing_token_endpoint',
   'missing_revocation_endpoint',
+  'invalid_grant_types',
   'missing_authorization_endpoint',
   'missing_device_authorization_endpoint',
 ];
 
-const bareHost = (host) => {
-  const h = String(host || '').trim().toLowerCase().replace(/\.+$/, '');
-  return h.startsWith('www.') ? h.slice(4) : h;
-};
+// Hosts are compared ignoring case, with no other normalization (spec 3.1).
+const normHost = (host) => String(host || '').trim().toLowerCase();
 
 const isObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 
@@ -92,24 +107,28 @@ export function issuerMetadataUrl(issuer) {
   return 'https://' + u.host + '/.well-known/oauth-authorization-server' + u.pathname.replace(/\/+$/, '');
 }
 
-// The spec's shape checks, no network. `requestedHost` is the host the file was
-// asked to, not where redirects ended: that is what must match organization.domain.
-export function validatePoppyDocument(document, requestedHost) {
+// The spec's shape checks, no network. `servedHost` is the host that served the
+// file, after any redirects: organization.domain must be that host (spec 3.1).
+// `issuer` is the declared auth.issuer; the probe replaces it with the issuer
+// discovery finds. `signInTypes` holds only what the file alone says (Mediated
+// Sign-In, an extension): Direct and Device Sign-In come from the issuer's
+// grant types, which only the probe reads.
+export function validatePoppyDocument(document, servedHost) {
   const issues = [];
   if (!isObject(document)) {
-    return { valid: false, issues: ['not_an_object'], protocolVersion: null, organizationDomain: null, issuer: null, signInTypes: [], apiTypes: [], hasConversation: false, hasBrowserSession: false };
+    return { valid: false, issues: ['not_an_object'], protocolVersion: null, organizationDomain: null, issuer: null, signInTypes: [], signInDisabled: false, signedInAccess: false, apiTypes: [], hasConversation: false, hasBrowserSession: false };
   }
 
   const version = document.protocol_version;
   if (typeof version !== 'string' || !version.includes('.')) issues.push('missing_protocol_version');
-  else if (!SUPPORTED_MAJOR_VERSIONS.has(version.split('.', 1)[0])) issues.push('unsupported_major_version');
+  else if (!SUPPORTED_VERSIONS.has(version.split('.').slice(0, 2).join('.'))) issues.push('unsupported_version');
 
   const org = document.organization;
   let domain = null;
   if (!isObject(org) || !truthy(org.name) || !truthy(org.domain)) issues.push('missing_organization');
   else {
     domain = String(org.domain);
-    if (bareHost(domain) !== bareHost(requestedHost)) issues.push('domain_mismatch');
+    if (normHost(domain) !== normHost(servedHost)) issues.push('domain_mismatch');
   }
 
   const agent = isObject(document.agent) ? document.agent : null;
@@ -117,13 +136,18 @@ export function validatePoppyDocument(document, requestedHost) {
   const web = isObject(document.web) ? document.web : null;
 
   let hasConversation = false;
+  let signedInAccess = false;
   const protocols = agent && Array.isArray(agent.protocols) ? agent.protocols : [];
   for (const entry of protocols) {
     if (!isObject(entry) || !truthy(entry.type) || !isHttpsUrl(entry.endpoint)) {
       issues.push('invalid_agent_protocol');
       break;
     }
-    if (entry.type === 'poppy') hasConversation = true;
+    if (entry.type === 'poppy') {
+      hasConversation = true;
+      // Unknown `access` values are ignored, as an absent hint (spec 3.2).
+      if (entry.access === 'signed_in') signedInAccess = true;
+    }
   }
 
   const apiTypes = [];
@@ -141,11 +165,14 @@ export function validatePoppyDocument(document, requestedHost) {
 
   if (!agent && !apis && !web) issues.push('no_channels');
 
+  // auth is optional: a company that offers no sign-in needs no issuer (spec 3.2).
   const auth = isObject(document.auth) ? document.auth : null;
   const issuer = auth ? auth.issuer : undefined;
-  const needsAuth = Boolean(agent || apis || browserEndpoint != null);
-  if (needsAuth && !isHttpsUrl(issuer)) issues.push('missing_auth_issuer');
-  const signInTypes = SIGN_IN_TYPES.filter((kind) => auth && isObject(auth[kind]));
+  if (issuer != null && !isHttpsUrl(issuer)) issues.push('invalid_auth_issuer');
+  const signInDisabled = Boolean(auth && auth.disabled === true);
+  const mediated = isObject(document.extensions) && isObject(document.extensions[MEDIATED_EXTENSION]);
+  // Sign-in turned off cannot go with Mediated Sign-In or `signed_in` access (spec 3.2).
+  if (signInDisabled && (mediated || signedInAccess)) issues.push('sign_in_conflict');
 
   return {
     valid: !issues.length,
@@ -153,30 +180,71 @@ export function validatePoppyDocument(document, requestedHost) {
     protocolVersion: typeof version === 'string' ? version : null,
     organizationDomain: domain,
     issuer: isHttpsUrl(issuer) ? issuer : null,
-    signInTypes,
+    signInTypes: mediated && !signInDisabled ? ['mediated'] : [],
+    signInDisabled,
+    signedInAccess,
     apiTypes,
     hasConversation,
     hasBrowserSession,
   };
 }
 
-// What the spec asks an agent to check before trusting the tokens: the
-// metadata's `issuer` equals auth.issuer, and `poppy_domains` lists the domain.
-// Then the endpoints the spec makes required (section 3.2), all https: the
-// token and revocation endpoints always, the authorization endpoint when
-// auth.direct is declared, the device authorization endpoint with auth.device.
-// Without them an agent finds the company and cannot sign in.
-export function checkIssuerMetadata(metadata, issuer, domain, signInTypes = []) {
+// Which issuer the domain's protected resource metadata (RFC 9728) name, as
+// spec 3.2 reads them. `metadata` is the parsed answer of
+// https://{domain}/.well-known/oauth-protected-resource, or null after a 404.
+// Returns { issuer, issues }: issuer null means a company with no issuer, which
+// is valid only when the file asks for no sign-in.
+export function resolveIssuer(metadata, domain, declaredIssuer, wantsSignIn) {
+  let servers = [];
+  if (metadata !== null) {
+    if (!isObject(metadata) || metadata.resource !== 'https://' + domain) return { issuer: null, issues: ['protected_resource_invalid'] };
+    const listed = metadata.authorization_servers;
+    if (listed != null && (!Array.isArray(listed) || !listed.every(isHttpsUrl))) return { issuer: null, issues: ['protected_resource_invalid'] };
+    servers = listed || [];
+  }
+  if (!servers.length) {
+    // A 404, or no authorization servers: the company has no issuer.
+    return { issuer: null, issues: declaredIssuer || wantsSignIn ? ['sign_in_without_issuer'] : [] };
+  }
+  if (servers.length > 1 && !declaredIssuer) return { issuer: null, issues: ['missing_auth_issuer'] };
+  const issuer = declaredIssuer || servers[0];
+  if (!servers.includes(issuer)) return { issuer: null, issues: ['issuer_not_listed'] };
+  return { issuer, issues: [] };
+}
+
+// What the spec asks an agent to check in the issuer's metadata (RFC 8414,
+// spec 3.2) before trusting its tokens: `issuer` equal to the one discovery
+// found, `protected_resources` listing https://{domain} (host compared without
+// case), https token and revocation endpoints, and `grant_types_supported`
+// with refresh_token. Then the endpoint each offered sign-in needs: the
+// authorization endpoint for authorization_code (Direct Sign-In), the device
+// authorization endpoint for the device code grant (Device Sign-In).
+export function checkIssuerMetadata(metadata, issuer, domain) {
   if (!isObject(metadata)) return ['issuer_metadata_invalid'];
   const issues = [];
   if (metadata.issuer !== issuer) issues.push('issuer_mismatch');
-  const domains = metadata.poppy_domains;
-  if (!Array.isArray(domains) || !domains.some((d) => bareHost(d) === bareHost(domain))) issues.push('domain_not_in_issuer');
+  const resources = metadata.protected_resources;
+  const wanted = 'https://' + normHost(domain);
+  if (!Array.isArray(resources) || !resources.some((r) => typeof r === 'string' && r.toLowerCase() === wanted)) issues.push('domain_not_in_issuer');
   if (!isHttpsUrl(metadata.token_endpoint)) issues.push('missing_token_endpoint');
   if (!isHttpsUrl(metadata.revocation_endpoint)) issues.push('missing_revocation_endpoint');
-  if (signInTypes.includes('direct') && !isHttpsUrl(metadata.authorization_endpoint)) issues.push('missing_authorization_endpoint');
-  if (signInTypes.includes('device') && !isHttpsUrl(metadata.device_authorization_endpoint)) issues.push('missing_device_authorization_endpoint');
+  const grants = Array.isArray(metadata.grant_types_supported) ? metadata.grant_types_supported : null;
+  if (!grants || !grants.includes('refresh_token')) issues.push('invalid_grant_types');
+  if (grants && grants.includes(DIRECT_GRANT) && !isHttpsUrl(metadata.authorization_endpoint)) issues.push('missing_authorization_endpoint');
+  if (grants && grants.includes(DEVICE_GRANT) && !isHttpsUrl(metadata.device_authorization_endpoint)) issues.push('missing_device_authorization_endpoint');
   return issues;
+}
+
+// The sign-in types a company offers, in the spec order: Direct and Device
+// from the issuer's grant types, Mediated from the file's extensions. None when
+// the file turns sign-in off.
+export function signInTypesFrom(metadata, checked) {
+  if (checked.signInDisabled) return [];
+  const grants = isObject(metadata) && Array.isArray(metadata.grant_types_supported) ? metadata.grant_types_supported : [];
+  const types = [];
+  if (grants.includes(DIRECT_GRANT)) types.push('direct');
+  if (grants.includes(DEVICE_GRANT)) types.push('device');
+  return [...types, ...checked.signInTypes];
 }
 
 // GET a JSON document, following redirects by hand so every hop is known (the
@@ -230,16 +298,41 @@ export async function probePoppy(host, fetchImpl = fetch, { userAgent = UA } = {
   if (res.json === undefined) return res.error ? { ...block, error: res.error } : block;
 
   block.present = true;
-  const { valid, issues: shapeIssues, ...checked } = validatePoppyDocument(res.json, host);
+  // The file speaks for the host that served it, after the redirects, and
+  // only from the exact well-known path, with no query (spec 3).
+  const last = new URL(res.hops[res.hops.length - 1]);
+  const { valid, issues: shapeIssues, ...checked } = validatePoppyDocument(res.json, last.hostname);
   const issues = [...shapeIssues];
   if (!res.hops.every((hop) => hop.startsWith('https://'))) issues.push('not_https');
+  if (last.pathname !== POPPY_PATH || last.search) issues.push('wrong_final_path');
 
-  if (checked.issuer && checked.organizationDomain && !issues.length) {
-    const meta = await getJson(issuerMetadataUrl(checked.issuer), fetchImpl, userAgent);
-    // No answer or an HTTP error: unreachable. An answer that is not a JSON
-    // object (an HTML page, a file over 256 KB): invalid.
-    if (meta.status === null || meta.status >= 400) issues.push('issuer_metadata_unreachable');
-    else issues.push(...checkIssuerMetadata(meta.json, checked.issuer, checked.organizationDomain, checked.signInTypes));
+  const declaredIssuer = checked.issuer;
+  checked.issuer = null;
+  if (checked.organizationDomain && !issues.length) {
+    const domain = normHost(checked.organizationDomain);
+    const prm = await getJson('https://' + domain + PROTECTED_RESOURCE_PATH, fetchImpl, userAgent);
+    let found = null;
+    // Only a 404 says "no issuer": a timeout, another error or a broken answer
+    // leaves the agent without an answer (spec 3.2).
+    if (prm.status === null || (prm.status >= 400 && prm.status !== 404)) issues.push('protected_resource_unreachable');
+    else if (prm.status !== 404 && prm.json === undefined) issues.push('protected_resource_invalid');
+    else {
+      const wantsSignIn = checked.signInTypes.length > 0 || checked.signedInAccess;
+      found = resolveIssuer(prm.status === 404 ? null : prm.json, domain, declaredIssuer, wantsSignIn);
+      issues.push(...found.issues);
+    }
+
+    if (found && found.issuer && !issues.length) {
+      checked.issuer = found.issuer;
+      const meta = await getJson(issuerMetadataUrl(found.issuer), fetchImpl, userAgent);
+      // No answer or an HTTP error: unreachable. An answer that is not a JSON
+      // object (an HTML page, a file over 256 KB): invalid.
+      if (meta.status === null || meta.status >= 400) issues.push('issuer_metadata_unreachable');
+      else {
+        issues.push(...checkIssuerMetadata(meta.json, found.issuer, domain));
+        checked.signInTypes = signInTypesFrom(meta.json, checked);
+      }
+    }
   }
 
   return { ...block, ...checked, issues, valid: !issues.length };

@@ -19,6 +19,8 @@ const SNAKE = {
   organizationDomain: 'organization_domain',
   issuer: 'issuer',
   signInTypes: 'sign_in_types',
+  signInDisabled: 'sign_in_disabled',
+  signedInAccess: 'signed_in_access',
   apiTypes: 'api_types',
   hasConversation: 'has_conversation',
   hasBrowserSession: 'has_browser_session',
@@ -55,7 +57,7 @@ for (const c of golden.validate_cases) {
 
 for (const c of golden.metadata_cases) {
   test(`golden metadata: ${c.name}`, () => {
-    assert.deepEqual(checkIssuerMetadata(c.metadata, c.issuer, c.domain, c.sign_in_types || []), c.expected);
+    assert.deepEqual(checkIssuerMetadata(c.metadata, c.issuer, c.domain), c.expected);
   });
 }
 
@@ -67,6 +69,7 @@ for (const c of golden.probe_cases) {
   test(`golden probe: ${c.name}`, async () => {
     const out = await probePoppy(c.host, routedFetch(c.routes));
     const { present, valid, issues, status } = out;
-    assert.deepEqual({ present, valid, issues, status, error: out.error ?? null }, c.expected);
+    const got = { present, valid, issues, status, error: out.error ?? null, issuer: out.issuer ?? null, sign_in_types: out.signInTypes ?? [] };
+    assert.deepEqual(got, c.expected);
   });
 }
