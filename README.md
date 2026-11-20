@@ -67,6 +67,12 @@ that deploys to **tools.trygeosuite.it**. It does a bit more than serve static H
   OpenAI-compatible endpoint; the key is a secret (`npx wrangler secret put
   LLM_API_KEY`, or `.dev.vars` locally). Without the key the preview hides itself
   and the check keeps working.
+- **Usage statistics:** anonymous, with PostHog (EU) in cookieless mode, no
+  cookies and no localStorage ([`theme.js`](theme.js) `analytics()`). Events say
+  which tool ran, the hostname of the site checked and the outcome (scores,
+  error codes, timings), never the full URL nor the question typed. Links to
+  trygeosuite.it carry utm parameters and the PostHog session id, so a visit to
+  the site can be joined to the tool that sent it.
 - **Shareable:** Open Graph + Twitter card meta with a bundled 1200×630 `/og.png`
   (wrangler `Data` rule), plus GeoSuite's favicon (`/favicon.png`, `/apple-touch-icon.png`).
 

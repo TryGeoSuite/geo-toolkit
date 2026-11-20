@@ -138,7 +138,7 @@ test('the check and the hub end on a demo, then signup, never on the old free an
   for (const lang of ['en', 'it']) {
     for (const html of [renderCheckPage(lang, ''), renderPage(lang, null)]) {
       assert.ok(!html.includes('analisi-gratuita'), `${lang}: no link to the retired free analysis`);
-      const demoAt = html.indexOf(`href="${DEMO}"`);
+      const demoAt = html.indexOf(`href="${DEMO}?utm_source=geosuite-open`);
       const signupAt = html.indexOf(`href="${SIGNUP}?`);
       assert.ok(demoAt > 0 && signupAt > demoAt, `${lang}: demo first, signup second`);
     }

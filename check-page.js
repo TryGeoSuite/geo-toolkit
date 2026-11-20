@@ -13,9 +13,14 @@
 // GeoSuite, with signing up (one audit included) as the smaller way in.
 
 import { WEIGHTS } from './check.js';
-import { FONTS, BASE_CSS, ENGINES, SIGNUP, ctaActions } from './theme.js';
+import { FONTS, BASE_CSS, ENGINES, SIGNUP, ctaActions, analytics, withSiteUtm } from './theme.js';
 
 const BASE = 'https://tools.trygeosuite.it';
+// The tool id in the usage statistics (theme.js analytics).
+const TOOL = 'ai_readiness_check';
+// The campaign name the existing signup links already use: one name per tool
+// keeps a per-campaign report on one row.
+const CAMPAIGN = 'ai-readiness-check';
 const SIGNUP_HREF = SIGNUP + '?utm_source=geosuite-open&utm_medium=tool&utm_campaign=ai-readiness-check';
 
 const TOOL_LINKS = {
@@ -68,7 +73,7 @@ const S = {
     ownLabel: 'Try your own question',
     ownPlaceholder: 'e.g. What are the best tools to see if ChatGPT recommends my company?',
     ownButton: 'Ask',
-    footer: 'A free tool by <a href="https://trygeosuite.it">GeoSuite</a>, the Italian platform for AI visibility. <a href="https://github.com/TryGeoSuite/geo-toolkit">Open source</a> (MIT). We read only the public pages of the site you enter.',
+    footer: 'A free tool by <a href="https://trygeosuite.it">GeoSuite</a>, the Italian platform for AI visibility. <a href="https://github.com/TryGeoSuite/geo-toolkit">Open source</a> (MIT). We read only the public pages of the site you enter. Anonymous usage statistics with PostHog (EU), without cookies: of what you type, they include only the site’s hostname.',
   },
   it: {
     title: 'Le AI consigliano te o i tuoi concorrenti? Controllo gratuito',
@@ -98,7 +103,7 @@ const S = {
     ownLabel: 'Prova con la tua domanda',
     ownPlaceholder: 'Es. Quali strumenti mi dicono se ChatGPT consiglia la mia azienda?',
     ownButton: 'Chiedi',
-    footer: 'Uno strumento gratuito di <a href="https://trygeosuite.it">GeoSuite</a>, la piattaforma italiana per la visibilità sulle AI. <a href="https://github.com/TryGeoSuite/geo-toolkit">Open source</a> (MIT). Leggiamo solo le pagine pubbliche del sito che inserisci.',
+    footer: 'Uno strumento gratuito di <a href="https://trygeosuite.it">GeoSuite</a>, la piattaforma italiana per la visibilità sulle AI. <a href="https://github.com/TryGeoSuite/geo-toolkit">Open source</a> (MIT). Leggiamo solo le pagine pubbliche del sito che inserisci. Statistiche d’uso anonime con PostHog (UE), senza cookie: di quello che scrivi includono solo il nome del sito.',
   },
 };
 
@@ -325,7 +330,7 @@ export function renderCheckPage(lang, initialUrl, initialQuestion = '') {
   const t = S[lang] || S.en;
   const config = { lang, weights: WEIGHTS, tools: TOOL_LINKS, icons: ICONS, q: String(initialQuestion || '').slice(0, 500) };
 
-  return `<!doctype html>
+  return withSiteUtm(`<!doctype html>
 <html lang="${lang}">
 <head>
 <meta charset="utf-8">
@@ -346,6 +351,7 @@ export function renderCheckPage(lang, initialUrl, initialQuestion = '') {
 <meta property="og:image" content="${BASE}/og.png">
 <meta name="twitter:card" content="summary_large_image">
 ${FONTS}
+${analytics(TOOL)}
 <script type="application/ld+json">${jsonLd(t, lang)}</script>
 <style>
 ${BASE_CSS}
@@ -487,6 +493,16 @@ ${BASE_CSS}
   var $ = function (id) { return document.getElementById(id); };
   var ORDER = ['crawlers', 'schema', 'llms', 'sitemap'];
   var run = 0, stageTimer = null;
+  // Usage statistics (theme.js analytics): never throws, never sends the question.
+  function track(event, props) { try { if (window.gsTrack) window.gsTrack(event, props); } catch (e) {} }
+  function since(t0) { return Date.now() - t0; }
+  function previewDone(p, inputHost, own, t0) {
+    var base = { input_host: inputHost, own_question: own, duration_ms: since(t0) };
+    if (!p || p.error) { base.error = (p && p.error) || 'generic'; track('tool_preview_failed', base); return; }
+    base.engine = p.model; base.web_search = !!p.webSearch; base.cached = !!p.cached;
+    base.position = p.position || 0; base.mentions = p.mentions || 0; base.total_runs = p.totalRuns || 1;
+    track('tool_preview_completed', base);
+  }
 
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
   function host(u) { try { return new URL(/^https?:/i.test(u) ? u : 'https://' + u).host.replace(/^www[.]/, ''); } catch (e) { return ''; } }
@@ -649,19 +665,23 @@ ${BASE_CSS}
     q = q.trim();
     if (!site || !q) return;
     ownQ = q;
-    var me = ++run;
+    var me = ++run, t0 = Date.now();
     $('own-go').disabled = true;
     showStages();
-    get('/api/preview', site, q).then(function (p) { if (me === run) showAnswer(p); })
-      .catch(function () { if (me === run) { clearInterval(stageTimer); $('answer-body').textContent = T.errors.generic; } })
+    track('tool_preview_asked', { input_host: site, own_question: true });
+    get('/api/preview', site, q).then(function (p) { previewDone(p, site, true, t0); if (me === run) showAnswer(p); })
+      .catch(function () { previewDone(null, site, true, t0); if (me === run) { clearInterval(stageTimer); $('answer-body').textContent = T.errors.generic; } })
       .then(function () { $('own-go').disabled = false; history.replaceState(null, '', shareUrl()); });
   }
 
-  function start(value) {
+  // source: 'form' (submitted) or 'shared_link' (a /check?url= link re-runs it).
+  function start(value, source) {
     value = value.trim();
     $('err').textContent = '';
     if (!value) { $('err').textContent = T.errors.invalid_url; return; }
-    var me = ++run;
+    var me = ++run, t0 = Date.now(), inputHost = window.gsTrack ? window.gsTrack.host(value) : '';
+    track('tool_run_started', { input_host: inputHost, source: source });
+    track('tool_preview_asked', { input_host: inputHost, own_question: !!ownQ });
     ['read', 'cta', 'sharebar'].forEach(function (id) { $(id).hidden = true; });
     $('example').hidden = true;
     $('go').disabled = true; $('go').textContent = T.running;
@@ -671,20 +691,31 @@ ${BASE_CSS}
     var scan = get('/api/scan', value).then(function (r) {
       if (me !== run) return;
       if (r.error) {
+        track('tool_run_failed', { input_host: inputHost, error: r.error, duration_ms: since(t0) });
         clearInterval(stageTimer);
         $('answer').hidden = true; $('example').hidden = false;
         $('err').textContent = T.errors[r.error] || T.errors.generic;
         return 'stop';
       }
+      track('tool_run_completed', {
+        input_host: inputHost, duration_ms: since(t0),
+        score: r.points.total, score_crawlers: r.points.crawlers, score_schema: r.points.schema,
+        score_llms: r.points.llms, score_sitemap: r.points.sitemap,
+        agents: r.agents ? (r.agents.valid ? 'valid' : r.agents.present ? 'invalid' : 'missing') : null,
+      });
       showRead(r);
       $('cta').hidden = false; $('sharebar').hidden = false;
       site = host(r.origin);
       history.replaceState(null, '', shareUrl());
-    }).catch(function () { if (me === run) $('err').textContent = T.errors.generic; });
+    }).catch(function () {
+      track('tool_run_failed', { input_host: inputHost, error: 'network', duration_ms: since(t0) });
+      if (me === run) $('err').textContent = T.errors.generic;
+    });
 
     var answer = get('/api/preview', value, ownQ).then(function (p) {
+      previewDone(p, inputHost, !!ownQ, t0);
       return scan.then(function (s) { if (me === run && s !== 'stop') showAnswer(p); });
-    }).catch(function () { if (me === run) { clearInterval(stageTimer); $('answer').hidden = true; } });
+    }).catch(function () { previewDone(null, inputHost, !!ownQ, t0); if (me === run) { clearInterval(stageTimer); $('answer').hidden = true; } });
 
     Promise.all([scan, answer]).then(function () {
       if (me !== run) return;
@@ -692,17 +723,23 @@ ${BASE_CSS}
     });
   }
 
-  $('f').addEventListener('submit', function (e) { e.preventDefault(); start($('u').value); });
+  $('f').addEventListener('submit', function (e) { e.preventDefault(); start($('u').value, 'form'); });
   $('own').addEventListener('submit', function (e) { e.preventDefault(); askOwn($('own-q').value); });
   $('share').addEventListener('click', function () {
     var b = this, old = b.textContent;
     navigator.clipboard.writeText(location.href).then(function () {
+      track('tool_result_shared', { input_host: site, method: 'copy_link' });
       b.textContent = T.copied; setTimeout(function () { b.textContent = old; }, 1400);
     }).catch(function () {});
   });
-  if ($('u').value) start($('u').value);
+  // A ?url= on arrival: the hub's form (same site, from its home) or a shared link.
+  if ($('u').value) {
+    var from = '';
+    try { var ref = new URL(document.referrer); from = ref.origin === location.origin ? ref.pathname : ''; } catch (e) {}
+    start($('u').value, /^[/](en|it)?[/]?$/.test(from) ? 'hub_form' : 'shared_link');
+  }
 })();
 </script>
 </body>
-</html>`;
+</html>`, CAMPAIGN);
 }
