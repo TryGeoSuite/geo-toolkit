@@ -9,11 +9,16 @@
 // The page also dogfoods the toolkit it advertises: JSON-LD structured data here,
 // plus /robots.txt, /llms.txt, /sitemap.xml and an OG image served by the worker.
 
-import { FONTS, BASE_CSS, ENGINES, SIGNUP, ctaActions } from './theme.js';
+import { FONTS, BASE_CSS, ENGINES, SIGNUP, ctaActions, analytics, withSiteUtm } from './theme.js';
 import { exampleCard, ICONS } from './check-page.js';
 
 const BASE = 'https://tools.trygeosuite.it';
 const SIGNUP_HREF = SIGNUP + '?utm_source=geosuite-open&utm_medium=tool&utm_campaign=hub';
+// The tool id in the usage statistics (theme.js analytics).
+const TOOL = 'geo_toolkit_home';
+// The campaign name the existing signup links already use: one name per tool
+// keeps a per-campaign report on one row.
+const CAMPAIGN = 'hub';
 
 // Line icons, 24px grid, drawn with currentColor: decoration next to the name,
 // never the only label.
@@ -90,7 +95,7 @@ const S = {
     ctaButton: 'Book a demo',
     ctaAlt: 'Or sign up and run your own audit',
     ctaAltNote: 'Your account comes with one audit included',
-    footer: 'Open source (MIT) by <a href="https://github.com/matte97p">Matteo Perino</a>, maintained under <a href="https://trygeosuite.it">GeoSuite</a>, the Italian platform for AI visibility. Code on <a href="https://github.com/TryGeoSuite">github.com/TryGeoSuite</a>.',
+    footer: 'Open source (MIT) by <a href="https://github.com/matte97p">Matteo Perino</a>, maintained under <a href="https://trygeosuite.it">GeoSuite</a>, the Italian platform for AI visibility. Code on <a href="https://github.com/TryGeoSuite">github.com/TryGeoSuite</a>. Anonymous usage statistics with PostHog (EU), without cookies.',
     tools: [
       'See which AI crawlers (GPTBot, ClaudeBot, PerplexityBot…) your <code>robots.txt</code> allows or blocks, with an AI-visibility score. Plus a public bot-list API.',
       'Turn any site’s <code>sitemap.xml</code> into an <code>llms.txt</code>: the curated index that tells AI models which pages matter.',
@@ -122,7 +127,7 @@ const S = {
     ctaButton: 'Prenota una demo',
     ctaAlt: 'Oppure registrati e lancia il tuo audit',
     ctaAltNote: 'Account con un audit incluso',
-    footer: 'Open source (MIT) di <a href="https://github.com/matte97p">Matteo Perino</a>, mantenuto da <a href="https://trygeosuite.it">GeoSuite</a>, la piattaforma italiana per la visibilità sulle AI. Codice su <a href="https://github.com/TryGeoSuite">github.com/TryGeoSuite</a>.',
+    footer: 'Open source (MIT) di <a href="https://github.com/matte97p">Matteo Perino</a>, mantenuto da <a href="https://trygeosuite.it">GeoSuite</a>, la piattaforma italiana per la visibilità sulle AI. Codice su <a href="https://github.com/TryGeoSuite">github.com/TryGeoSuite</a>. Statistiche d’uso anonime con PostHog (UE), senza cookie.',
     tools: [
       'Scopri quali crawler AI (GPTBot, ClaudeBot, PerplexityBot…) il tuo <code>robots.txt</code> permette o blocca, con un punteggio di visibilità AI. Più una API pubblica con la lista dei bot.',
       'Trasforma il <code>sitemap.xml</code> di qualsiasi sito in un <code>llms.txt</code>: l’indice curato che dice ai modelli AI quali pagine contano.',
@@ -185,7 +190,7 @@ export function renderPage(lang, stats) {
       </li>`,
   ).join('\n');
 
-  return `<!doctype html>
+  return withSiteUtm(`<!doctype html>
 <html lang="${lang}">
 <head>
 <meta charset="utf-8">
@@ -212,6 +217,7 @@ export function renderPage(lang, stats) {
 <meta name="twitter:description" content="${t.desc}">
 <meta name="twitter:image" content="${BASE}/og.png">
 ${FONTS}
+${analytics(TOOL)}
 <script type="application/ld+json">${jsonLd(t)}</script>
 <style>
 ${BASE_CSS}
@@ -298,6 +304,7 @@ ${cards}
     b.type = 'button'; b.className = 'ghost'; b.textContent = L.copy; b.setAttribute('aria-label', L.label);
     b.addEventListener('click', function () {
       navigator.clipboard.writeText(cmd).then(function () {
+        try { if (window.gsTrack) window.gsTrack('tool_result_copied', { content: 'cli_command', command: cmd.split(' ').slice(0, 2).join(' ') }); } catch (e) {}
         b.textContent = L.copied;
         setTimeout(function () { b.textContent = L.copy; }, 1200);
       }).catch(function () {});
@@ -307,5 +314,5 @@ ${cards}
 })();
 </script>
 </body>
-</html>`;
+</html>`, CAMPAIGN);
 }
